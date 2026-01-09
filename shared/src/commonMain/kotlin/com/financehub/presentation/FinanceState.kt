@@ -2,6 +2,7 @@ package com.financehub.presentation
 
 import com.financehub.domain.model.ChangeLogEntry
 import com.financehub.domain.model.ConsolidatedReport
+import com.financehub.domain.model.IgnorePatterns
 import com.financehub.domain.model.MonthReport
 import com.financehub.domain.model.Transaction
 
@@ -23,7 +24,14 @@ data class FinanceState(
     val pendingTransactions: List<Transaction> = emptyList(),
     val editedTransactions: Map<String, Transaction> = emptyMap(),
     val changeLog: List<ChangeLogEntry> = emptyList(),
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    
+    // Ignore patterns
+    val ignorePatterns: IgnorePatterns = IgnorePatterns.default(),
+    val showIgnorePatternsDialog: Boolean = false,
+    
+    // Historical data
+    val savedMonths: List<String> = emptyList()
 )
 
 /**
@@ -40,8 +48,24 @@ sealed class FinanceEvent {
     object PreviewSelectedFiles : FinanceEvent()
     data class EditTransactionCategory(val transactionId: String, val newCategory: com.financehub.domain.model.Category) : FinanceEvent()
     data class ToggleTransactionType(val transactionId: String) : FinanceEvent()
+    data class ToggleTransactionIgnored(val transactionId: String) : FinanceEvent()
     object ConfirmPreview : FinanceEvent()
     object CancelPreview : FinanceEvent()
     data class UpdateSearchQuery(val query: String) : FinanceEvent()
     object ExportChangeLog : FinanceEvent()
-}
+    
+    // Ignore patterns events
+    object ShowIgnorePatternsDialog : FinanceEvent()
+    object HideIgnorePatternsDialog : FinanceEvent()
+    data class AddIgnorePattern(val pattern: String) : FinanceEvent()
+    data class RemoveIgnorePattern(val pattern: String) : FinanceEvent()
+    data class AddAdvancedIgnoreRule(
+        val pattern: String,
+        val minAmount: Double,
+        val requiresIntegerValue: Boolean,
+        val description: String
+    ) : FinanceEvent()
+    data class RemoveAdvancedIgnoreRule(val rule: com.financehub.domain.model.AdvancedIgnoreRule) : FinanceEvent()    
+    // Historical data events
+    object LoadHistoricalData : FinanceEvent()
+    object ClearReports : FinanceEvent()}

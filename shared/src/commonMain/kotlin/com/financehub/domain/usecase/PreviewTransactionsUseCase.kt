@@ -1,5 +1,6 @@
 package com.financehub.domain.usecase
 
+import com.financehub.domain.model.IgnorePatterns
 import com.financehub.domain.model.Transaction
 import com.financehub.domain.repository.TransactionRepository
 
@@ -12,9 +13,10 @@ class PreviewTransactionsUseCase(
     /**
      * Faz preview de transações de arquivos selecionados
      * @param filePaths Lista de caminhos de arquivos para preview
+     * @param ignorePatterns Padrões para auto-ignorar transações
      * @return Result com lista de transações ou erro
      */
-    suspend operator fun invoke(filePaths: List<String>): Result<List<Transaction>> {
+    suspend operator fun invoke(filePaths: List<String>, ignorePatterns: IgnorePatterns = IgnorePatterns.default()): Result<List<Transaction>> {
         return try {
             println("🔍 PreviewTransactionsUseCase: Iniciando preview de ${filePaths.size} arquivo(s)")
             
@@ -50,6 +52,40 @@ class PreviewTransactionsUseCase(
                 }
             }
             
+            // Aplicar padrões de ignorar automaticamente
+            val transactionsWithIgnorePatterns = allTransactions.map { transaction ->
+                // Verificar padrão simples
+                val matchesSimple = ignorePatterns.matchesSimplePattern(transaction.description)
+                
+                // Verificar regra avançada
+                val matchedAdvancedRule = ignorePatterns.matchesAdvancedRule(
+                    transaction.description, 
+                    transaction.amount
+                )
+                
+                when {
+                    matchedAdvancedRule != null -> {
+                        // Regra avançada: ignorar + marcar para revisão
+                        transaction.copy(isIgnored = true, needsReview = true)
+                    }
+                    matchesSimple -> {
+                        // Padrão simples: apenas ignorar
+                        transaction.copy(isIgnored = true)
+                    }
+                    else -> transaction
+                }
+            }
+            
+            val ignoredCount = transactionsWithIgnorePatterns.count { it.isIgnored }
+            val reviewCount = transactionsWithIgnorePatterns.count { it.needsReview }
+            
+            if (ignoredCount > 0) {
+                println("   🔇 Auto-ignoradas por padrão: $ignoredCount")
+            }
+            if (reviewCount > 0) {
+                println("   ⚠️  Necessitam revisão (regra avançada): $reviewCount")
+            }
+            
             println("\n📊 Resultado do preview:")
             println("   ✓ Total de transações: ${allTransactions.size}")
             println("   ⚠ Erros/avisos: ${errors.size}")
@@ -61,10 +97,10 @@ class PreviewTransactionsUseCase(
             } else if (errors.isNotEmpty()) {
                 println("⚠️ Avisos de parsing (mas ${allTransactions.size} transações foram encontradas):")
                 errors.forEach { println("   - $it") }
-                Result.success(allTransactions)
+                Result.success(transactionsWithIgnorePatterns)
             } else {
                 println("✅ Preview concluído com sucesso!")
-                Result.success(allTransactions)
+                Result.success(transactionsWithIgnorePatterns)
             }
         } catch (e: Exception) {
             println("❌ Erro fatal no PreviewTransactionsUseCase: ${e.message}")

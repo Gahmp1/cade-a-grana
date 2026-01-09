@@ -3,6 +3,8 @@ package com.financehub
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,160 +97,28 @@ fun MainScreen(
                     )
                 }
                 
-                // Modo normal - sem preview
+                // Modo relatórios - mostra quando há dados processados
+                state.consolidatedReport != null -> {
+                    ReportContent(
+                        viewModel = viewModel,
+                        state = state
+                    )
+                }
+                
+                // Modo Home - estado inicial
                 else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Abas para escolher modo
-                        var selectedTab by remember { mutableStateOf(0) }
-                        
-                        TabRow(
-                            selectedTabIndex = selectedTab,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        ) {
-                            Tab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                text = { Text("Preview de Arquivos") },
-                                selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Tab(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                text = { Text("Carregar Diretório (Legado)") },
-                                selectedContentColor = MaterialTheme.colorScheme.onSurface,
-                                unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        
-                        when (selectedTab) {
-                            0 -> {
-                                // Nova interface de preview
-                                FileSelectionScreen(
-                                    state = state,
-                                    onEvent = viewModel::onEvent,
-                                    onSelectFiles = {
-                                        val selectedFiles = onSelectFiles()
-                                        if (selectedFiles.isNotEmpty()) {
-                                            viewModel.onEvent(FinanceEvent.SelectFiles(selectedFiles))
-                                        }
-                                    }
-                                )
-                            }
-                            1 -> {
-                                // Interface legada de carregar diretório
-                                LegacyDirectoryMode(
-                                    state = state,
-                                    viewModel = viewModel,
-                                    defaultPath = defaultPath
-                                )
+                    HomeScreen(
+                        state = state,
+                        onEvent = viewModel::onEvent,
+                        onSelectFiles = {
+                            val selectedFiles = onSelectFiles()
+                            if (selectedFiles.isNotEmpty()) {
+                                viewModel.onEvent(FinanceEvent.SelectFiles(selectedFiles))
                             }
                         }
-                    }
+                    )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun LegacyDirectoryMode(
-    state: com.financehub.presentation.FinanceState,
-    viewModel: FinanceViewModel,
-    defaultPath: String
-) {
-    // Auto-carregar se tem path padrão (apenas uma vez)
-    LaunchedEffect(defaultPath) {
-        if (defaultPath.isNotEmpty() && state.directoryPath.isEmpty() && state.transactions.isEmpty()) {
-            viewModel.onEvent(FinanceEvent.LoadDirectory(defaultPath))
-        }
-    }
-    
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Diretório input
-        DirectoryInput(
-            path = state.directoryPath,
-            onLoadClick = { path ->
-                viewModel.onEvent(FinanceEvent.LoadDirectory(path))
-            }
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        // Loading ou conteúdo
-        when {
-            state.isLoading -> {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-            
-            state.error != null -> {
-                ErrorCard(
-                    message = state.error ?: "",
-                    onDismiss = { viewModel.onEvent(FinanceEvent.ClearError) }
-                )
-            }
-            
-            state.consolidatedReport != null -> {
-                ReportContent(viewModel, state)
-            }
-            
-            else -> {
-                Text(
-                    "Selecione um diretório com seus extratos financeiros",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DirectoryInput(
-    path: String,
-    onLoadClick: (String) -> Unit
-) {
-    var inputPath by remember(path) { mutableStateOf(path) }
-    
-    // Atualiza inputPath quando path muda
-    LaunchedEffect(path) {
-        if (path.isNotEmpty() && inputPath != path) {
-            inputPath = path
-        }
-    }
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        OutlinedTextField(
-            value = inputPath,
-            onValueChange = { inputPath = it },
-            label = { Text("Diretório") },
-            placeholder = { Text("/Users/joaogabriel/Notas") },
-            modifier = Modifier.weight(1f),
-            singleLine = true
-        )
-        
-        Button(
-            onClick = { onLoadClick(inputPath) },
-            enabled = true
-        ) {
-            Text("Carregar")
         }
     }
 }
@@ -293,9 +163,37 @@ fun ReportContent(
     val consolidated = state.consolidatedReport ?: return
     
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Botão Voltar e info de meses salvos
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = { viewModel.onEvent(FinanceEvent.ClearReports) },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                )
+            ) {
+                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Voltar")
+            }
+            
+            if (state.savedMonths.isNotEmpty()) {
+                Text(
+                    "💾 ${state.savedMonths.size} meses salvos",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        
         // Resumo consolidado
         ConsolidatedSummaryCard(consolidated)
         

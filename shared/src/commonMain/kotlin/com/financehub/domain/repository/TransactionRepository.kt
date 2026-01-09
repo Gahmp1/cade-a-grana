@@ -37,4 +37,19 @@ interface TransactionRepository {
      * Salva log de mudanças em formato JSON
      */
     suspend fun saveChangeLog(changeLog: String, filePath: String): Result<Unit>
+    
+    /**
+     * Salva transações para um mês específico
+     */
+    suspend fun saveTransactionsForMonth(yearMonth: String, transactions: List<Transaction>): Result<Unit>
+    
+    /**
+     * Carrega todos os meses salvos
+     */
+    suspend fun loadAllSavedMonths(): Result<List<String>>
+    
+    /**
+     * Carrega transações de um mês específico
+     */
+    suspend fun loadTransactionsForMonth(yearMonth: String): Result<List<Transaction>>
 }

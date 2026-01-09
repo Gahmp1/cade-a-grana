@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,10 +24,10 @@ import java.io.File
 import kotlin.math.abs
 
 /**
- * Tela de seleção de arquivos para preview
+ * Tela inicial (Home) - seleção de arquivos para preview
  */
 @Composable
-fun FileSelectionScreen(
+fun HomeScreen(
     state: FinanceState,
     onEvent: (FinanceEvent) -> Unit,
     onSelectFiles: () -> Unit
@@ -38,7 +39,7 @@ fun FileSelectionScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            "Selecionar Arquivos para Preview",
+            "FinanceHub - Home",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -74,6 +75,52 @@ fun FileSelectionScreen(
             Icon(Icons.Default.Add, contentDescription = null)
             Spacer(Modifier.width(8.dp))
             Text("Selecionar Arquivos (CSV/PDF)")
+        }
+        
+        // Histórico de dados salvos
+        if (state.savedMonths.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "📂 Histórico Salvo (${state.savedMonths.size} meses)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        OutlinedButton(
+                            onClick = { onEvent(FinanceEvent.LoadHistoricalData) },
+                            enabled = state.transactions.isEmpty()
+                        ) {
+                            Text("Carregar Tudo")
+                        }
+                    }
+                    
+                    Text(
+                        state.savedMonths.joinToString(", "),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
+                    
+                    Text(
+                        "Os dados salvos serão mesclados automaticamente ao processar novos arquivos",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                    )
+                }
+            }
         }
         
         if (state.selectedFiles.isNotEmpty()) {
@@ -187,6 +234,17 @@ fun TransactionPreviewScreen(
         // Header com estatísticas
         PreviewHeader(state)
         
+        // Botão de gerenciar padrões
+        OutlinedButton(
+            onClick = { onEvent(FinanceEvent.ShowIgnorePatternsDialog) },
+            modifier = Modifier.fillMaxWidth(),
+            colors = FinanceButtonStyles.outlinedButtonColors()
+        ) {
+            Icon(Icons.Default.Settings, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Gerenciar Padrões de Ignorar (${state.ignorePatterns.patterns.size})")
+        }
+        
         // Barra de pesquisa
         SearchBar(
             query = state.searchQuery,
@@ -215,6 +273,9 @@ fun TransactionPreviewScreen(
                     },
                     onToggleType = {
                         onEvent(FinanceEvent.ToggleTransactionType(transaction.id))
+                    },
+                    onIgnoreToggle = {
+                        onEvent(FinanceEvent.ToggleTransactionIgnored(transaction.id))
                     }
                 )
             }
@@ -226,6 +287,14 @@ fun TransactionPreviewScreen(
             onConfirm = { onEvent(FinanceEvent.ConfirmPreview) },
             onCancel = { onEvent(FinanceEvent.CancelPreview) },
             onExportLog = { onEvent(FinanceEvent.ExportChangeLog) }
+        )
+    }
+    
+    // Dialog de padrões de ignorar
+    if (state.showIgnorePatternsDialog) {
+        IgnorePatternsDialog(
+            state = state,
+            onEvent = onEvent
         )
     }
 }
@@ -259,6 +328,26 @@ private fun PreviewHeader(state: FinanceState) {
                         fontWeight = FontWeight.Bold
                     )
                     Text("Transações", style = MaterialTheme.typography.bodySmall)
+                }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${state.pendingTransactions.count { it.isIgnored }}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (state.pendingTransactions.any { it.isIgnored }) MaterialTheme.colorScheme.error else Color.Unspecified
+                    )
+                    Text("Ignoradas", style = MaterialTheme.typography.bodySmall)
+                }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "${state.pendingTransactions.count { it.needsReview }}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (state.pendingTransactions.any { it.needsReview }) MaterialTheme.colorScheme.error else Color.Unspecified
+                    )
+                    Text("Revisão", style = MaterialTheme.typography.bodySmall)
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
@@ -310,18 +399,49 @@ private fun SearchBar(
 private fun EditableTransactionCard(
     transaction: Transaction,
     onCategoryChange: (Category) -> Unit,
-    onToggleType: () -> Unit
+    onToggleType: () -> Unit,
+    onIgnoreToggle: () -> Unit
 ) {
     var showCategoryMenu by remember { mutableStateOf(false) }
     
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (transaction.isIgnored && !transaction.needsReview) 0.5f else 1f),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = if (transaction.needsReview) {
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            )
+        } else {
+            CardDefaults.cardColors()
+        }
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Badge de revisão
+            if (transaction.needsReview) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        "NECESSITA REVISÃO - Regra Avançada",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            
             // Linha 1: Descrição e valor
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -411,6 +531,21 @@ private fun EditableTransactionCard(
                         }
                     }
                 }
+                
+                Spacer(Modifier.weight(1f))
+                
+                // Botão de ignorar
+                FilterChip(
+                    selected = transaction.isIgnored,
+                    onClick = onIgnoreToggle,
+                    label = { Text(if (transaction.isIgnored) "Ignorada" else "Ignorar") },
+                    leadingIcon = {
+                        Icon(
+                            if (transaction.isIgnored) Icons.Default.Close else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null
+                        )
+                    }
+                )
             }
         }
     }

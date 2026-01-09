@@ -3,6 +3,7 @@ package com.financehub.presentation
 import com.financehub.domain.model.Category
 import com.financehub.domain.model.ChangeLog
 import com.financehub.domain.model.ChangeLogEntry
+import com.financehub.domain.model.Transaction
 import com.financehub.domain.usecase.GenerateConsolidatedReportUseCase
 import com.financehub.domain.usecase.GenerateMonthReportsUseCase
 import com.financehub.domain.usecase.LoadTransactionsUseCase
@@ -18,6 +19,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.decodeFromString
 
 /**
  * ViewModel principal da aplicação
@@ -33,7 +35,12 @@ class FinanceViewModel(
     private val _state = MutableStateFlow(FinanceState())
     val state: StateFlow<FinanceState> = _state.asStateFlow()
     
-    private val json = Json { prettyPrint = true }
+    private val json = Json { prettyPrint = true; ignoreUnknownKeys = true }
+    
+    init {
+        loadIgnorePatterns()
+        loadSavedMonthsList()
+    }
     
     fun onEvent(event: FinanceEvent) {
         when (event) {
@@ -45,10 +52,21 @@ class FinanceViewModel(
             is FinanceEvent.PreviewSelectedFiles -> previewSelectedFiles()
             is FinanceEvent.EditTransactionCategory -> editTransactionCategory(event.transactionId, event.newCategory)
             is FinanceEvent.ToggleTransactionType -> toggleTransactionType(event.transactionId)
+            is FinanceEvent.ToggleTransactionIgnored -> toggleTransactionIgnored(event.transactionId)
             is FinanceEvent.ConfirmPreview -> confirmPreview()
             is FinanceEvent.CancelPreview -> cancelPreview()
             is FinanceEvent.UpdateSearchQuery -> updateSearchQuery(event.query)
             is FinanceEvent.ExportChangeLog -> exportChangeLog()
+            is FinanceEvent.ShowIgnorePatternsDialog -> showIgnorePatternsDialog()
+            is FinanceEvent.HideIgnorePatternsDialog -> hideIgnorePatternsDialog()
+            is FinanceEvent.AddIgnorePattern -> addIgnorePattern(event.pattern)
+            is FinanceEvent.RemoveIgnorePattern -> removeIgnorePattern(event.pattern)
+            is FinanceEvent.AddAdvancedIgnoreRule -> addAdvancedIgnoreRule(
+                event.pattern, event.minAmount, event.requiresIntegerValue, event.description
+            )
+            is FinanceEvent.RemoveAdvancedIgnoreRule -> removeAdvancedIgnoreRule(event.rule)
+            is FinanceEvent.LoadHistoricalData -> loadHistoricalData()
+            is FinanceEvent.ClearReports -> clearReports()
         }
     }
     
@@ -164,7 +182,7 @@ class FinanceViewModel(
             
             println("⏳ Chamando PreviewTransactionsUseCase...")
             
-            previewTransactionsUseCase(selectedFiles)
+            previewTransactionsUseCase(selectedFiles, _state.value.ignorePatterns)
                 .onSuccess { transactions ->
                     println("✅ ViewModel: Preview concluído com ${transactions.size} transações")
                     _state.value = _state.value.copy(
@@ -213,6 +231,8 @@ class FinanceViewModel(
                 newCategory = newCategory.displayName,
                 originalType = if (originalTransaction.isIncome) "Entrada" else "Saída",
                 newType = if (originalTransaction.isIncome) "Entrada" else "Saída",
+                originalIgnored = originalTransaction.isIgnored,
+                newIgnored = originalTransaction.isIgnored,
                 timestamp = now.toString()
             )
             
@@ -255,6 +275,49 @@ class FinanceViewModel(
             newCategory = editedTransaction.category.displayName,
             originalType = if (originalTransaction.isIncome) "Entrada" else "Saída",
             newType = if (editedTransaction.isIncome) "Entrada" else "Saída",
+            originalIgnored = originalTransaction.isIgnored,
+            newIgnored = editedTransaction.isIgnored,
+            timestamp = now.toString()
+        )
+        
+        // Remover entradas antigas do mesmo ID e adicionar nova
+        val newChangeLog = current.changeLog.filter { it.transactionId != transactionId } + entry
+        
+        _state.value = current.copy(
+            pendingTransactions = updatedPending,
+            editedTransactions = updatedEdited,
+            changeLog = newChangeLog
+        )
+    }
+    
+    private fun toggleTransactionIgnored(transactionId: String) {
+        val current = _state.value
+        val originalTransaction = current.pendingTransactions.find { it.id == transactionId }
+            ?: return
+        
+        // Inverter o status de ignorado
+        val editedTransaction = originalTransaction.copy(isIgnored = !originalTransaction.isIgnored)
+        val updatedEdited = current.editedTransactions + (transactionId to editedTransaction)
+        
+        // Atualizar lista de pendentes
+        val updatedPending = current.pendingTransactions.map { 
+            if (it.id == transactionId) editedTransaction else it
+        }
+        
+        // Criar entrada de log
+        val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        val entry = ChangeLogEntry(
+            transactionId = transactionId,
+            date = originalTransaction.date,
+            description = originalTransaction.description,
+            amount = originalTransaction.amount,
+            source = originalTransaction.source.displayName,
+            originalCategory = originalTransaction.category.displayName,
+            newCategory = editedTransaction.category.displayName,
+            originalType = if (originalTransaction.isIncome) "Entrada" else "Saída",
+            newType = if (editedTransaction.isIncome) "Entrada" else "Saída",
+            originalIgnored = originalTransaction.isIgnored,
+            newIgnored = editedTransaction.isIgnored,
             timestamp = now.toString()
         )
         
@@ -277,8 +340,33 @@ class FinanceViewModel(
                 error = null
             )
             
-            // Usar transações editadas como finais
-            val finalTransactions = current.pendingTransactions
+            // Usar transações editadas como finais, excluindo as ignoradas
+            val finalTransactions = current.pendingTransactions.filter { !it.isIgnored }
+            
+            // Agrupar por mês e salvar
+            val byMonth = finalTransactions.groupBy { 
+                "${it.date.year}-${it.date.monthNumber.toString().padStart(2, '0')}"
+            }
+            
+            println("💾 Salvando ${byMonth.size} mês(es)...")
+            byMonth.forEach { (yearMonth, monthTransactions) ->
+                // Carregar transações existentes do mês
+                repository.loadTransactionsForMonth(yearMonth)
+                    .onSuccess { existingTransactions ->
+                        // Merge: remover duplicatas por ID
+                        val existingIds = existingTransactions.map { it.id }.toSet()
+                        val newTransactions = monthTransactions.filter { it.id !in existingIds }
+                        val mergedTransactions = (existingTransactions + newTransactions)
+                            .sortedBy { it.date }
+                        
+                        // Salvar transações mescladas
+                        repository.saveTransactionsForMonth(yearMonth, mergedTransactions)
+                    }
+                    .onFailure {
+                        // Se falhar ao carregar, apenas salva as novas
+                        repository.saveTransactionsForMonth(yearMonth, monthTransactions)
+                    }
+            }
             
             _state.value = current.copy(
                 isLoading = false,
@@ -289,7 +377,8 @@ class FinanceViewModel(
                 selectedFiles = emptyList()
             )
             
-            // Auto-gerar relatórios
+            // Recarregar meses salvos e auto-gerar relatórios
+            loadHistoricalData()
             generateReports()
         }
     }
@@ -342,5 +431,243 @@ class FinanceViewModel(
                 )
             }
         }
+    }
+    
+    private fun showIgnorePatternsDialog() {
+        _state.value = _state.value.copy(showIgnorePatternsDialog = true)
+    }
+    
+    private fun hideIgnorePatternsDialog() {
+        _state.value = _state.value.copy(showIgnorePatternsDialog = false)
+    }
+    
+    private fun addIgnorePattern(pattern: String) {
+        if (pattern.isBlank()) return
+        
+        val current = _state.value.ignorePatterns
+        val trimmedPattern = pattern.trim().lowercase()
+        
+        if (!current.patterns.contains(trimmedPattern)) {
+            val updated = current.copy(
+                patterns = current.patterns + trimmedPattern
+            )
+            _state.value = _state.value.copy(ignorePatterns = updated)
+            
+            // Salvar padrões
+            saveIgnorePatterns(updated)
+            
+            // Reaplicar padrões nas transações do preview
+            reapplyIgnorePatterns()
+        }
+    }
+    
+    private fun removeIgnorePattern(pattern: String) {
+        val current = _state.value.ignorePatterns
+        val updated = current.copy(
+            patterns = current.patterns.filter { it != pattern }
+        )
+        _state.value = _state.value.copy(ignorePatterns = updated)
+        
+        // Salvar padrões
+        saveIgnorePatterns(updated)
+        
+        // Reaplicar padrões nas transações do preview
+        reapplyIgnorePatterns()
+    }
+    
+    private fun addAdvancedIgnoreRule(
+        pattern: String,
+        minAmount: Double,
+        requiresIntegerValue: Boolean,
+        description: String
+    ) {
+        if (pattern.isBlank()) return
+        
+        val current = _state.value.ignorePatterns
+        val newRule = com.financehub.domain.model.AdvancedIgnoreRule(
+            pattern = pattern.trim(),
+            minAmount = minAmount,
+            requiresIntegerValue = requiresIntegerValue,
+            description = description.trim()
+        )
+        
+        val updated = current.copy(
+            advancedRules = current.advancedRules + newRule
+        )
+        _state.value = _state.value.copy(ignorePatterns = updated)
+        
+        // Salvar padrões
+        saveIgnorePatterns(updated)
+        
+        // Reaplicar padrões nas transações do preview
+        reapplyIgnorePatterns()
+    }
+    
+    private fun removeAdvancedIgnoreRule(rule: com.financehub.domain.model.AdvancedIgnoreRule) {
+        val current = _state.value.ignorePatterns
+        val updated = current.copy(
+            advancedRules = current.advancedRules.filter { it != rule }
+        )
+        _state.value = _state.value.copy(ignorePatterns = updated)
+        
+        // Salvar padrões
+        saveIgnorePatterns(updated)
+        
+        // Reaplicar padrões nas transações do preview
+        reapplyIgnorePatterns()
+    }
+    
+    private fun reapplyIgnorePatterns() {
+        val current = _state.value
+        
+        // Se não estiver em preview mode, não fazer nada
+        if (!current.previewMode || current.pendingTransactions.isEmpty()) {
+            return
+        }
+        
+        val patterns = current.ignorePatterns
+        
+        // Reaplicar padrões em todas as transações pendentes
+        val updatedTransactions = current.pendingTransactions.map { transaction ->
+            // Começar com transação limpa (sem flags de ignorado)
+            val cleanTransaction = transaction.copy(isIgnored = false, needsReview = false)
+            
+            // Verificar padrão simples
+            val matchesSimple = patterns.matchesSimplePattern(cleanTransaction.description)
+            
+            // Verificar regra avançada
+            val matchedAdvancedRule = patterns.matchesAdvancedRule(
+                cleanTransaction.description,
+                cleanTransaction.amount
+            )
+            
+            when {
+                matchedAdvancedRule != null -> {
+                    // Regra avançada: ignorar + marcar para revisão
+                    cleanTransaction.copy(isIgnored = true, needsReview = true)
+                }
+                matchesSimple -> {
+                    // Padrão simples: apenas ignorar
+                    cleanTransaction.copy(isIgnored = true)
+                }
+                else -> cleanTransaction
+            }
+        }
+        
+        // Atualizar o estado com as transações atualizadas
+        _state.value = current.copy(pendingTransactions = updatedTransactions)
+        
+        val ignoredCount = updatedTransactions.count { it.isIgnored }
+        val reviewCount = updatedTransactions.count { it.needsReview }
+        println("🔄 Padrões reaplicados: $ignoredCount ignoradas, $reviewCount para revisão")
+    }
+    
+    private fun loadIgnorePatterns() {
+        coroutineScope.launch {
+            try {
+                val homeDir = System.getProperty("user.home")
+                val filePath = "$homeDir/.financehub/ignore-patterns.json"
+                
+                repository.loadTransactionsFromFile(filePath)
+                // Se o arquivo existir, tentar ler como texto
+                val file = java.io.File(filePath)
+                if (file.exists()) {
+                    val jsonContent = file.readText()
+                    val patterns = json.decodeFromString<com.financehub.domain.model.IgnorePatterns>(jsonContent)
+                    _state.value = _state.value.copy(ignorePatterns = patterns)
+                    println("✅ Padrões carregados: ${patterns.patterns.size} simples, ${patterns.advancedRules.size} avançados")
+                } else {
+                    println("ℹ️ Nenhum padrão salvo encontrado, usando padrões default")
+                }
+            } catch (e: Exception) {
+                println("⚠️ Erro ao carregar padrões: ${e.message}")
+                // Manter padrões default em caso de erro
+            }
+        }
+    }
+    
+    private fun saveIgnorePatterns(patterns: com.financehub.domain.model.IgnorePatterns) {
+        coroutineScope.launch {
+            try {
+                val homeDir = System.getProperty("user.home")
+                val configDir = "$homeDir/.financehub"
+                val filePath = "$configDir/ignore-patterns.json"
+                
+                // Criar diretório se não existir
+                java.io.File(configDir).mkdirs()
+                
+                val jsonContent = json.encodeToString(patterns)
+                java.io.File(filePath).writeText(jsonContent)
+                
+                println("✅ Padrões de ignorar salvos: $filePath")
+            } catch (e: Exception) {
+                println("⚠️ Erro ao salvar padrões: ${e.message}")
+            }
+        }
+    }
+    
+    private fun loadSavedMonthsList() {
+        coroutineScope.launch {
+            repository.loadAllSavedMonths()
+                .onSuccess { months ->
+                    _state.value = _state.value.copy(savedMonths = months)
+                    if (months.isNotEmpty()) {
+                        println("📅 Meses disponíveis: ${months.joinToString()}")
+                    }
+                }
+                .onFailure { error ->
+                    println("❌ Erro ao carregar lista de meses: ${error.message}")
+                }
+        }
+    }
+    
+    private fun loadHistoricalData() {
+        coroutineScope.launch {
+            _state.value = _state.value.copy(isLoading = true)
+            
+            repository.loadAllSavedMonths()
+                .onSuccess { months ->
+                    _state.value = _state.value.copy(savedMonths = months)
+                    
+                    if (months.isNotEmpty()) {
+                        println("📅 Meses históricos carregados: ${months.joinToString()}")
+                        
+                        // Carregar todas as transações históricas
+                        val allHistoricalTransactions = mutableListOf<Transaction>()
+                        months.forEach { yearMonth ->
+                            repository.loadTransactionsForMonth(yearMonth)
+                                .onSuccess { transactions ->
+                                    allHistoricalTransactions.addAll(transactions)
+                                }
+                        }
+                        
+                        // Sempre atualizar as transações e gerar relatórios se há dados históricos
+                        if (allHistoricalTransactions.isNotEmpty()) {
+                            _state.value = _state.value.copy(
+                                transactions = allHistoricalTransactions,
+                                isLoading = false
+                            )
+                            generateReports()
+                        } else {
+                            _state.value = _state.value.copy(isLoading = false)
+                        }
+                    } else {
+                        _state.value = _state.value.copy(isLoading = false)
+                    }
+                }
+                .onFailure { error ->
+                    println("❌ Erro ao carregar dados históricos: ${error.message}")
+                    _state.value = _state.value.copy(isLoading = false)
+                }
+        }
+    }
+    
+    private fun clearReports() {
+        _state.value = _state.value.copy(
+            transactions = emptyList(),
+            monthReports = emptyList(),
+            consolidatedReport = null,
+            selectedMonth = null
+        )
     }
 }

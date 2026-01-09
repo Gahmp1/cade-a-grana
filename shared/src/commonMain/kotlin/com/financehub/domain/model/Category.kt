@@ -1,8 +1,11 @@
 package com.financehub.domain.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * Categorias de transações
  */
+@Serializable
 enum class Category(val displayName: String, val keywords: List<String>) {
     ALIMENTACAO(
         "Alimentação",

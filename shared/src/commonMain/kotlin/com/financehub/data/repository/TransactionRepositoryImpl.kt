@@ -6,6 +6,10 @@ import com.financehub.domain.model.MonthReport
 import com.financehub.domain.model.Transaction
 import com.financehub.domain.repository.TransactionRepository
 import kotlinx.datetime.LocalDate
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import java.io.File
 
 /**
  * Implementação do TransactionRepository
@@ -111,6 +115,70 @@ class TransactionRepositoryImpl(
             Result.success(Unit)
         } catch (e: Exception) {
             println("❌ Erro ao salvar log: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun saveTransactionsForMonth(yearMonth: String, transactions: List<Transaction>): Result<Unit> {
+        return try {
+            val homeDir = System.getProperty("user.home")
+            val financeHubDir = File(homeDir, ".financehub/transactions")
+            if (!financeHubDir.exists()) {
+                financeHubDir.mkdirs()
+            }
+            
+            val file = File(financeHubDir, "$yearMonth.json")
+            val json = Json { prettyPrint = true }
+            val jsonContent = json.encodeToString<List<Transaction>>(transactions)
+            file.writeText(jsonContent)
+            
+            println("💾 Transações salvas: $yearMonth (${transactions.size} transações)")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            println("❌ Erro ao salvar transações: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun loadAllSavedMonths(): Result<List<String>> {
+        return try {
+            val homeDir = System.getProperty("user.home")
+            val transactionsDir = File(homeDir, ".financehub/transactions")
+            
+            if (!transactionsDir.exists()) {
+                return Result.success(emptyList())
+            }
+            
+            val months = transactionsDir.listFiles()?.filter { it.extension == "json" }
+                ?.map { it.nameWithoutExtension }
+                ?.sorted()
+                ?: emptyList()
+            
+            println("📂 Meses salvos encontrados: ${months.size}")
+            Result.success(months)
+        } catch (e: Exception) {
+            println("❌ Erro ao carregar meses: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun loadTransactionsForMonth(yearMonth: String): Result<List<Transaction>> {
+        return try {
+            val homeDir = System.getProperty("user.home")
+            val file = File(homeDir, ".financehub/transactions/$yearMonth.json")
+            
+            if (!file.exists()) {
+                return Result.success(emptyList())
+            }
+            
+            val jsonContent = file.readText()
+            val json = Json { ignoreUnknownKeys = true }
+            val transactions = json.decodeFromString<List<Transaction>>(jsonContent)
+            
+            println("📖 Carregadas ${transactions.size} transações de $yearMonth")
+            Result.success(transactions)
+        } catch (e: Exception) {
+            println("❌ Erro ao carregar transações de $yearMonth: ${e.message}")
             Result.failure(e)
         }
     }

@@ -17,6 +17,8 @@ data class ChangeLogEntry(
     val newCategory: String,
     val originalType: String, // "Entrada" ou "Saída"
     val newType: String,
+    val originalIgnored: Boolean,
+    val newIgnored: Boolean,
     val timestamp: String
 )
 
@@ -34,11 +36,12 @@ data class ChangeLog(
         fun fromEntries(entries: List<ChangeLogEntry>): ChangeLog {
             val categoryChanges = entries.count { it.originalCategory != it.newCategory }
             val typeChanges = entries.count { it.originalType != it.newType }
+            val ignoredChanges = entries.count { it.originalIgnored != it.newIgnored }
             return ChangeLog(
                 changes = entries,
                 totalChanges = entries.size,
                 categoryChanges = categoryChanges,
-                typeChanges = typeChanges
+                typeChanges = typeChanges + ignoredChanges
             )
         }
     }
