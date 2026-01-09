@@ -1,0 +1,67 @@
+# .gitignore para Kotlin Multiplatform Project
+
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Kotlin
+*.kotlin_metadata
+*.kotlin_builtins
+*.kotlin_module
+bin/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+local.properties
+.externalNativeBuild/
+.cxx/
+captures/
+proguard/
+
+# iOS
+*.xcuserstate
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+DerivedData/
+Pods/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Compose
+.compose-cache/
+
+# Log files
+*.log
+
+# PDFs de teste (não commitar extratos reais)
+test_data/
+*.pdf
+extratos/
+
+# Relatórios gerados
+relatorio_*.txt
