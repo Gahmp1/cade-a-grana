@@ -32,17 +32,39 @@ fun HomeScreen(
     onEvent: (FinanceEvent) -> Unit,
     onSelectFiles: () -> Unit
 ) {
+    var showClearDataDialog by remember { mutableStateOf(false) }
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            "FinanceHub - Home",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
+        // Header com título e botão de limpar
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "FinanceHub - Home",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            if (state.savedMonths.isNotEmpty()) {
+                OutlinedButton(
+                    onClick = { showClearDataDialog = true },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Limpar Dados")
+                }
+            }
+        }
         
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -172,6 +194,49 @@ fun HomeScreen(
                 onDismiss = { onEvent(FinanceEvent.ClearError) }
             )
         }
+    }
+    
+    // Dialog de confirmação para limpar dados
+    if (showClearDataDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearDataDialog = false },
+            title = { Text("Limpar Todos os Dados?") },
+            text = {
+                Column {
+                    Text(
+                        "Esta ação irá remover TODOS os dados salvos:",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("• ${state.savedMonths.size} meses de transações")
+                    Text("• Todos os arquivos em ~/.financehub/transactions/")
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Esta ação NÃO PODE ser desfeita!",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onEvent(FinanceEvent.ClearAllData)
+                        showClearDataDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Sim, Limpar Tudo")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearDataDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }
 

@@ -32,6 +32,22 @@ data class MonthReport(
     }
     
     /**
+     * Agrupa transações por fonte de dados (breakdown por banco)
+     */
+    val sourceBreakdown: Map<String, SourceSummary> by lazy {
+        val sources = transactions.map { it.effectiveSourceName }.distinct()
+        sources.associateWith { sourceName ->
+            val sourceTransactions = transactions.filter { it.effectiveSourceName == sourceName }
+            SourceSummary(
+                sourceName = sourceName,
+                transactions = sourceTransactions,
+                totalIncome = sourceTransactions.filter { it.isIncome }.sumOf { it.amount },
+                totalExpense = sourceTransactions.filter { it.isExpense }.sumOf { kotlin.math.abs(it.amount) }
+            )
+        }.toSortedMap(compareByDescending { sourceBreakdown[it]?.totalExpense ?: 0.0 })
+    }
+    
+    /**
      * Top 5 maiores gastos
      */
     val topExpenses: List<Transaction> by lazy {
@@ -71,4 +87,19 @@ data class CategorySummary(
             .sortedByDescending { kotlin.math.abs(it.amount) }
             .take(if (transactions.size <= 5) transactions.size else 3)
     }
+}
+
+/**
+ * Resumo de uma fonte de dados (banco/cartão)
+ */
+data class SourceSummary(
+    val sourceName: String, // Nome customizado ou DataSource.displayName
+    val transactions: List<Transaction>,
+    val totalIncome: Double,
+    val totalExpense: Double
+) {
+    val balance: Double = totalIncome - totalExpense
+    val transactionCount: Int = transactions.size
+    val incomeCount: Int = transactions.count { it.isIncome }
+    val expenseCount: Int = transactions.count { it.isExpense }
 }

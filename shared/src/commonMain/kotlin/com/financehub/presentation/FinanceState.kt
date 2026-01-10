@@ -2,6 +2,7 @@ package com.financehub.presentation
 
 import com.financehub.domain.model.ChangeLogEntry
 import com.financehub.domain.model.ConsolidatedReport
+import com.financehub.domain.model.FileMetadata
 import com.financehub.domain.model.IgnorePatterns
 import com.financehub.domain.model.MonthReport
 import com.financehub.domain.model.Transaction
@@ -21,6 +22,8 @@ data class FinanceState(
     // Preview mode properties
     val previewMode: Boolean = false,
     val selectedFiles: List<String> = emptyList(),
+    val fileMetadata: Map<String, FileMetadata> = emptyMap(), // File path -> metadata
+    val showFileNamingDialog: Boolean = false,
     val pendingTransactions: List<Transaction> = emptyList(),
     val editedTransactions: Map<String, Transaction> = emptyMap(),
     val changeLog: List<ChangeLogEntry> = emptyList(),
@@ -45,6 +48,8 @@ sealed class FinanceEvent {
     
     // Preview mode events
     data class SelectFiles(val filePaths: List<String>) : FinanceEvent()
+    data class ConfirmFileMetadata(val metadata: Map<String, FileMetadata>) : FinanceEvent()
+    object CancelFileNaming : FinanceEvent()
     object PreviewSelectedFiles : FinanceEvent()
     data class EditTransactionCategory(val transactionId: String, val newCategory: com.financehub.domain.model.Category) : FinanceEvent()
     data class ToggleTransactionType(val transactionId: String) : FinanceEvent()
@@ -68,4 +73,6 @@ sealed class FinanceEvent {
     data class RemoveAdvancedIgnoreRule(val rule: com.financehub.domain.model.AdvancedIgnoreRule) : FinanceEvent()    
     // Historical data events
     object LoadHistoricalData : FinanceEvent()
-    object ClearReports : FinanceEvent()}
+    object ClearReports : FinanceEvent()
+    object ClearAllData : FinanceEvent()
+}

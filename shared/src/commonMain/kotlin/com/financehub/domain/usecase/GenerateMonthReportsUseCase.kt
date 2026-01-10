@@ -12,7 +12,7 @@ class GenerateMonthReportsUseCase(
 ) {
     suspend operator fun invoke(
         transactions: List<Transaction>,
-        maxReports: Int = 5
+        maxReports: Int = 300
     ): Result<List<MonthReport>> {
         return try {
             // Agrupar por mês

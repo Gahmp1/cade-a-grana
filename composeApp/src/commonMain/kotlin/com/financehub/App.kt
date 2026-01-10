@@ -119,6 +119,19 @@ fun MainScreen(
                     )
                 }
             }
+            
+            // Dialog de nomeação de arquivos
+            if (state.showFileNamingDialog) {
+                FileNamingDialog(
+                    selectedFiles = state.selectedFiles,
+                    onConfirm = { metadata ->
+                        viewModel.onEvent(FinanceEvent.ConfirmFileMetadata(metadata))
+                    },
+                    onCancel = {
+                        viewModel.onEvent(FinanceEvent.CancelFileNaming)
+                    }
+                )
+            }
         }
     }
 }

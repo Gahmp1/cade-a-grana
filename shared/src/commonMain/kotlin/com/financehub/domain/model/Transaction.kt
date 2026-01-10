@@ -29,9 +29,15 @@ data class Transaction(
     val source: DataSource,
     val rawData: String = "",
     val isIgnored: Boolean = false, // Transações ignoradas não entram em cálculos
-    val needsReview: Boolean = false // Marcada para revisão (regra avançada)
+    val needsReview: Boolean = false, // Marcada para revisão (regra avançada)
+    val customSourceTag: String? = null // Tag customizada pelo usuário para o banco/fonte
 ) {
     val isIncome: Boolean get() = amount > 0
     val isExpense: Boolean get() = amount < 0
     val absAmount: Double get() = kotlin.math.abs(amount)
+    
+    /**
+     * Nome efetivo da fonte: usa tag customizada se disponível, senão usa displayName do DataSource
+     */
+    val effectiveSourceName: String get() = customSourceTag ?: source.displayName
 }

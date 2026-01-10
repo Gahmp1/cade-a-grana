@@ -49,6 +49,8 @@ class FinanceViewModel(
             is FinanceEvent.GenerateReports -> generateReports()
             is FinanceEvent.ClearError -> clearError()
             is FinanceEvent.SelectFiles -> selectFiles(event.filePaths)
+            is FinanceEvent.ConfirmFileMetadata -> confirmFileMetadata(event.metadata)
+            is FinanceEvent.CancelFileNaming -> cancelFileNaming()
             is FinanceEvent.PreviewSelectedFiles -> previewSelectedFiles()
             is FinanceEvent.EditTransactionCategory -> editTransactionCategory(event.transactionId, event.newCategory)
             is FinanceEvent.ToggleTransactionType -> toggleTransactionType(event.transactionId)
@@ -67,6 +69,7 @@ class FinanceViewModel(
             is FinanceEvent.RemoveAdvancedIgnoreRule -> removeAdvancedIgnoreRule(event.rule)
             is FinanceEvent.LoadHistoricalData -> loadHistoricalData()
             is FinanceEvent.ClearReports -> clearReports()
+            is FinanceEvent.ClearAllData -> clearAllData()
         }
     }
     
@@ -153,25 +156,44 @@ class FinanceViewModel(
     private fun selectFiles(filePaths: List<String>) {
         _state.value = _state.value.copy(
             selectedFiles = filePaths,
+            showFileNamingDialog = true, // Mostrar dialog para nomear arquivos
             error = null
+        )
+    }
+    
+    private fun confirmFileMetadata(metadata: Map<String, com.financehub.domain.model.FileMetadata>) {
+        _state.value = _state.value.copy(
+            fileMetadata = metadata,
+            showFileNamingDialog = false
+        )
+        // Após confirmar metadata, fazer preview automaticamente
+        previewSelectedFiles()
+    }
+    
+    private fun cancelFileNaming() {
+        _state.value = _state.value.copy(
+            selectedFiles = emptyList(),
+            fileMetadata = emptyMap(),
+            showFileNamingDialog = false
         )
     }
     
     private fun previewSelectedFiles() {
         coroutineScope.launch {
-            val selectedFiles = _state.value.selectedFiles
+            val fileMetadata = _state.value.fileMetadata
             println("\n🚀 ViewModel: Iniciando previewSelectedFiles()")
-            println("   Arquivos selecionados: ${selectedFiles.size}")
+            println("   Arquivos com metadata: ${fileMetadata.size}")
             
-            if (selectedFiles.isEmpty()) {
-                println("❌ ViewModel: Nenhum arquivo selecionado")
+            if (fileMetadata.isEmpty()) {
+                println("❌ ViewModel: Nenhum arquivo com metadata")
                 _state.value = _state.value.copy(
-                    error = "Selecione pelo menos um arquivo"
+                    error = "Configure os nomes dos arquivos primeiro"
                 )
                 return@launch
             }
             
-            selectedFiles.forEachIndexed { i, file ->
+            val filePaths = fileMetadata.keys.toList()
+            filePaths.forEachIndexed { i, file ->
                 println("   ${i + 1}. ${file.split("/").last()}")
             }
             
@@ -182,7 +204,7 @@ class FinanceViewModel(
             
             println("⏳ Chamando PreviewTransactionsUseCase...")
             
-            previewTransactionsUseCase(selectedFiles, _state.value.ignorePatterns)
+            previewTransactionsUseCase(filePaths, _state.value.ignorePatterns)
                 .onSuccess { transactions ->
                     println("✅ ViewModel: Preview concluído com ${transactions.size} transações")
                     _state.value = _state.value.copy(
@@ -669,5 +691,26 @@ class FinanceViewModel(
             consolidatedReport = null,
             selectedMonth = null
         )
+    }
+    
+    private fun clearAllData() {
+        coroutineScope.launch {
+            val homeDir = System.getProperty("user.home")
+            val transactionsDir = java.io.File(homeDir, ".financehub/transactions")
+            
+            if (transactionsDir.exists()) {
+                transactionsDir.listFiles()?.forEach { it.delete() }
+                println("🗑️ Todos os dados salvos foram removidos")
+            }
+            
+            // Limpar estado
+            _state.value = _state.value.copy(
+                transactions = emptyList(),
+                monthReports = emptyList(),
+                consolidatedReport = null,
+                selectedMonth = null,
+                savedMonths = emptyList()
+            )
+        }
     }
 }
