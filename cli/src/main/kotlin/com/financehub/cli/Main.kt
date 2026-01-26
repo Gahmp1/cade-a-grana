@@ -24,6 +24,7 @@ fun main(args: Array<String>) = FhubCommand()
         ParseCommand(),
         ReportCommand(),
         ExportCommand(),
-        VersionCommand()
+        VersionCommand(),
+        DebugPdfCommand()
     )
     .main(args)
