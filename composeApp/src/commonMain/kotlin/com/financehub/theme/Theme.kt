@@ -45,11 +45,11 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 /**
- * Tema principal do FinanceHub
+ * Tema principal do Cadê a Grana?
  * Integrado com o Design System (DSColors, DSTypography)
  */
 @Composable
-fun FinanceHubTheme(
+fun CadeAGranaTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(

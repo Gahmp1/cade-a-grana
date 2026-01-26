@@ -55,7 +55,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.financehub"
+    namespace = "com.cadeagrana"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
@@ -63,7 +63,7 @@ android {
     sourceSets["main"].resources.srcDirs("src/commonMain/resources")
 
     defaultConfig {
-        applicationId = "com.financehub"
+        applicationId = "com.cadeagrana"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -97,10 +97,10 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "FinanceHub"
+            packageName = "Cade a Grana"
             packageVersion = "1.0.0"
-            description = "Personal Finance Management App"
-            vendor = "FinanceHub"
+            description = "Cadê a Grana? - Gestão Financeira Pessoal"
+            vendor = "Cadê a Grana?"
             
             // Include all Java modules for full JDK support
             includeAllModules = true
@@ -110,17 +110,17 @@ compose.desktop {
 
             macOS {
                 iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
-                bundleID = "com.financehub"
+                bundleID = "com.cadeagrana"
             }
             
             windows {
-                menuGroup = "FinanceHub"
+                menuGroup = "Cade a Grana"
                 upgradeUuid = "B9F8E2D4-3A1C-4F5E-8D7B-6C9A0E1F2D3B"
             }
             
             linux {
-                packageName = "financehub"
-                debMaintainer = "financehub@example.com"
+                packageName = "cadeagrana"
+                debMaintainer = "cadeagrana@example.com"
             }
         }
     }

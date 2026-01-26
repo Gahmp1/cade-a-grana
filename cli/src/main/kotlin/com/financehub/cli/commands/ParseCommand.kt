@@ -1,7 +1,7 @@
 package com.financehub.cli.commands
 
-import com.financehub.data.parser.FileReader
-import com.financehub.data.repository.TransactionRepositoryImpl
+import com.financehub.data.parser.*
+import com.financehub.data.parser.common.BaseParser
 import com.financehub.domain.model.Transaction
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.terminal
@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.rendering.TextColors.*
@@ -20,22 +21,93 @@ import kotlinx.serialization.json.Json
 import java.io.File
 
 /**
+ * Bancos suportados pelo FinanceHub
+ */
+enum class Bank(val displayName: String) {
+    ITAU("Itaú"),
+    NUBANK("Nubank"),
+    BRADESCO("Bradesco"),
+    SANTANDER("Santander"),
+    CAIXA("Caixa Econômica"),
+    BB("Banco do Brasil"),
+    MERCADOPAGO("Mercado Pago"),
+    PICPAY("PicPay");
+    
+    companion object {
+        fun fromString(value: String): Bank? = entries.find { 
+            it.name.equals(value, ignoreCase = true) 
+        }
+    }
+}
+
+/**
+ * Tipo de documento financeiro
+ */
+enum class DocumentType(val displayName: String) {
+    EXTRATO("Extrato Bancário"),
+    FATURA("Fatura de Cartão");
+    
+    companion object {
+        fun fromString(value: String): DocumentType? = entries.find { 
+            it.name.equals(value, ignoreCase = true) 
+        }
+    }
+}
+
+/**
  * Parse bank statement files and display transactions
  * 
- * Uses the shared module parsers for automatic bank detection:
- * - Itaú (CSV, TXT, PDF)
- * - Nubank (CSV, PDF)
- * - Banco do Brasil (CSV, PDF)
- * - Bradesco (CSV, PDF)
- * - Santander (CSV, PDF)
- * - Caixa (CSV, PDF)
- * - Mercado Pago (CSV)
- * - PicPay (PDF)
+ * Supported banks and document types:
+ * - Itaú: extrato (CSV, TXT, PDF), fatura (CSV)
+ * - Nubank: extrato (PDF), fatura (CSV)
+ * - Bradesco: extrato (CSV, PDF)
+ * - Santander: extrato (CSV, PDF)
+ * - Caixa: extrato (CSV, PDF)
+ * - Banco do Brasil: extrato (CSV, PDF)
+ * - Mercado Pago: extrato (CSV)
+ * - PicPay: extrato (PDF)
+ * 
+ * 💡 Dica: Prefira usar arquivos CSV sempre que possível.
+ *    São mais simples de processar e menos propensos a erros.
  */
 class ParseCommand : CliktCommand(
     name = "parse",
-    help = "Parse bank statement files (CSV, TXT, PDF) and display transactions"
+    help = """
+        Parse bank statement files (CSV, TXT, PDF) and display transactions.
+        
+        You must specify the bank and document type.
+        
+        💡 TIP: Prefer CSV files when available - they are simpler and more reliable.
+        
+        Examples:
+          fhub parse -b itau -t fatura fatura.csv
+          fhub parse -b nubank -t fatura nubank.csv
+          fhub parse -b itau -t extrato extrato.txt
+          fhub parse -b bb -t extrato extrato.csv
+    """.trimIndent()
 ) {
+    private val banco by option("-b", "--banco", help = "Bank name (required)")
+        .choice(
+            "itau" to Bank.ITAU,
+            "nubank" to Bank.NUBANK,
+            "bradesco" to Bank.BRADESCO,
+            "santander" to Bank.SANTANDER,
+            "caixa" to Bank.CAIXA,
+            "bb" to Bank.BB,
+            "mercadopago" to Bank.MERCADOPAGO,
+            "picpay" to Bank.PICPAY,
+            ignoreCase = true
+        )
+        .required()
+    
+    private val tipo by option("-t", "--tipo", help = "Document type (required)")
+        .choice(
+            "extrato" to DocumentType.EXTRATO,
+            "fatura" to DocumentType.FATURA,
+            ignoreCase = true
+        )
+        .required()
+    
     private val files by argument(help = "Bank statement files to parse")
         .file(mustExist = true, canBeDir = false)
         .multiple(required = true)
@@ -52,19 +124,110 @@ class ParseCommand : CliktCommand(
 
     private val json = Json { prettyPrint = true }
     
-    // Use the shared repository with all parsers
-    private val repository = TransactionRepositoryImpl(FileReader())
+    /**
+     * Retorna o parser correto baseado no banco e tipo de documento
+     */
+    private fun getParser(bank: Bank, docType: DocumentType, fileExtension: String): FileParser? {
+        return when (bank) {
+            Bank.ITAU -> when (docType) {
+                DocumentType.FATURA -> ItauCreditCardParser()
+                DocumentType.EXTRATO -> when (fileExtension.lowercase()) {
+                    "pdf" -> ItauPdfParser()
+                    else -> ItauBankStatementParser()
+                }
+            }
+            Bank.NUBANK -> when (docType) {
+                DocumentType.FATURA -> NubankCsvParser()
+                DocumentType.EXTRATO -> NubankPdfParser()
+            }
+            Bank.BRADESCO -> when (docType) {
+                DocumentType.EXTRATO -> when (fileExtension.lowercase()) {
+                    "pdf" -> BradescoPdfParser()
+                    else -> BradescoCsvParser()
+                }
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  Fatura Bradesco ainda não suportada. Use extrato."))
+                    null
+                }
+            }
+            Bank.SANTANDER -> when (docType) {
+                DocumentType.EXTRATO -> when (fileExtension.lowercase()) {
+                    "pdf" -> SantanderPdfParser()
+                    else -> SantanderCsvParser()
+                }
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  Fatura Santander ainda não suportada. Use extrato."))
+                    null
+                }
+            }
+            Bank.CAIXA -> when (docType) {
+                DocumentType.EXTRATO -> when (fileExtension.lowercase()) {
+                    "pdf" -> CaixaPdfParser()
+                    else -> CaixaCsvParser()
+                }
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  Fatura Caixa ainda não suportada. Use extrato."))
+                    null
+                }
+            }
+            Bank.BB -> when (docType) {
+                DocumentType.EXTRATO -> when (fileExtension.lowercase()) {
+                    "pdf" -> BancoBrasilPdfParser()
+                    else -> BancoBrasilCsvParser()
+                }
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  Fatura Banco do Brasil ainda não suportada. Use extrato."))
+                    null
+                }
+            }
+            Bank.MERCADOPAGO -> when (docType) {
+                DocumentType.EXTRATO -> MercadoPagoCsvParser()
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  Mercado Pago não possui fatura. Use extrato."))
+                    null
+                }
+            }
+            Bank.PICPAY -> when (docType) {
+                DocumentType.EXTRATO -> PicPayStatementParser()
+                DocumentType.FATURA -> {
+                    echo((yellow)("⚠️  PicPay não possui fatura. Use extrato."))
+                    null
+                }
+            }
+        }
+    }
 
     override fun run() = runBlocking {
         val allTransactions = mutableListOf<Transaction>()
         
+        // Mostrar dica sobre CSV se estiver usando PDF
+        val hasPdf = files.any { it.extension.lowercase() == "pdf" }
+        if (hasPdf) {
+            echo("")
+            echo((cyan)("💡 Dica: Prefira usar arquivos CSV quando disponível."))
+            echo((cyan)("   São mais simples de processar e menos propensos a erros."))
+            echo("")
+        }
+        
+        echo((bold)("📊 ${banco.displayName} - ${tipo.displayName}"))
+        echo("")
+        
         files.forEachIndexed { index, file ->
+            val fileExtension = file.extension
+            
             if (verbose) {
                 echo((bold + white)("[${index + 1}/${files.size}] ") + "Parsing ${file.name}...")
             }
             
+            val parser = getParser(banco, tipo, fileExtension)
+            if (parser == null) {
+                echo((red)("  ❌ No parser available for ${banco.displayName} ${tipo.displayName}"), err = true)
+                return@forEachIndexed
+            }
+            
             try {
-                val transactions = repository.loadTransactionsFromFile(file.absolutePath)
+                val content = file.readText()
+                val transactions = parser.parse(content, file.name)
                 allTransactions.addAll(transactions)
                 
                 if (verbose) {

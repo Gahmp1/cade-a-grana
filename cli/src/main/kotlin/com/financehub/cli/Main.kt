@@ -5,21 +5,21 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 
 /**
- * Main entry point for the FinanceHub CLI (fhub)
+ * Main entry point for the Cadê a Grana? CLI (grana)
  */
-class FhubCommand : CliktCommand(
-    name = "fhub",
+class GranaCommand : CliktCommand(
+    name = "grana",
     help = """
-        FinanceHub CLI - Process bank statements and manage your finances from the terminal.
+        Cadê a Grana? CLI - Processe extratos bancários e gerencie suas finanças pelo terminal.
         
-        Use --help on any command for more information.
+        Use --help em qualquer comando para mais informações.
     """.trimIndent(),
     printHelpOnEmptyArgs = true
 ) {
     override fun run() = Unit
 }
 
-fun main(args: Array<String>) = FhubCommand()
+fun main(args: Array<String>) = GranaCommand()
     .subcommands(
         ParseCommand(),
         ReportCommand(),

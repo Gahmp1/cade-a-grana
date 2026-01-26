@@ -1,4 +1,4 @@
-rootProject.name = "FinanceHub"
+rootProject.name = "CadeAGrana"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

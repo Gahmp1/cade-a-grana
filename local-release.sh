@@ -106,7 +106,7 @@ echo "Building CLI JAR first..."
 
 # Inject Java bin into the app bundle (JPackage doesn't include java CLI)
 echo "Injecting Java bin into app bundle..."
-APP_PATH="composeApp/build/compose/binaries/main/app/FinanceHub.app"
+APP_PATH="composeApp/build/compose/binaries/main/app/CadeAGrana.app"
 RUNTIME_BIN="$APP_PATH/Contents/runtime/Contents/Home/bin"
 mkdir -p "$RUNTIME_BIN"
 # For ARM64, detect the current JDK
@@ -119,7 +119,7 @@ echo "Java binary injected: $RUNTIME_BIN/java"
 # Recreate DMG with the updated app
 echo "Recreating DMG with Java binary..."
 rm -rf composeApp/build/compose/binaries/main/dmg/*.dmg
-hdiutil create -volname "FinanceHub" -srcfolder "$APP_PATH" -ov -format UDZO "composeApp/build/compose/binaries/main/dmg/FinanceHub-1.0.0.dmg"
+hdiutil create -volname "CadeAGrana" -srcfolder "$APP_PATH" -ov -format UDZO "composeApp/build/compose/binaries/main/dmg/CadeAGrana-1.0.0.dmg"
 
 cd composeApp/build/compose/binaries/main/dmg
 for f in *.dmg; do
@@ -164,7 +164,7 @@ arch -x86_64 ./gradlew :composeApp:packageDmg --no-daemon --max-workers=2
 
 # Inject Java bin into the app bundle (JPackage doesn't include java CLI)
 echo "Injecting Java bin into app bundle..."
-APP_PATH="composeApp/build/compose/binaries/main/app/FinanceHub.app"
+APP_PATH="composeApp/build/compose/binaries/main/app/CadeAGrana.app"
 RUNTIME_BIN="$APP_PATH/Contents/runtime/Contents/Home/bin"
 mkdir -p "$RUNTIME_BIN"
 # Copy java executable from the x64 JDK
@@ -175,7 +175,7 @@ echo "Java binary injected: $RUNTIME_BIN/java"
 # Recreate DMG with the updated app
 echo "Recreating DMG with Java binary..."
 rm -rf composeApp/build/compose/binaries/main/dmg/*.dmg
-hdiutil create -volname "FinanceHub" -srcfolder "$APP_PATH" -ov -format UDZO "composeApp/build/compose/binaries/main/dmg/FinanceHub-1.0.0.dmg"
+hdiutil create -volname "CadeAGrana" -srcfolder "$APP_PATH" -ov -format UDZO "composeApp/build/compose/binaries/main/dmg/CadeAGrana-1.0.0.dmg"
 
 cd composeApp/build/compose/binaries/main/dmg
 for f in *.dmg; do
@@ -210,11 +210,11 @@ else
     echo -e "${BLUE}⬆️  Step 9: Upload to GitHub Release${NC}"
     echo "Uploading DMGs to release $NEW_TAG..."
     gh release create "$NEW_TAG" "$OUTPUT_DIR"/*.dmg \
-        --title "FinanceHub $NEW_TAG" \
+        --title "CadeAGrana $NEW_TAG" \
         --notes "## Downloads
 
-- **Video-Clipper-*-arm64.dmg** - Para Macs com Apple Silicon (M1, M2, M3, M4)
-- **Video-Clipper-*-x64.dmg** - Para Macs Intel
+- **CadeAGrana-*-arm64.dmg** - Para Macs com Apple Silicon (M1, M2, M3, M4)
+- **CadeAGrana-*-x64.dmg** - Para Macs Intel
 
 ### Instalação
 1. Baixe o DMG correspondente ao seu Mac

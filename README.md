@@ -1,4 +1,4 @@
-# FinanceHub - Análise Financeira Multiplataforma 💰
+# Cadê a Grana? 💰
 
 Sistema de análise financeira construído com **Kotlin Multiplatform** e **Compose Multiplatform** para processar extratos bancários e gerar relatórios detalhados.
 
@@ -16,7 +16,7 @@ Sistema de análise financeira construído com **Kotlin Multiplatform** e **Comp
 ## 🏗️ Arquitetura
 
 ```
-FinanceHubKMP/
+CadeAGrana/
 ├── composeApp/          # UI Layer (Compose Multiplatform)
 │   ├── commonMain/      # UI compartilhada
 │   ├── desktopMain/     # Main desktop

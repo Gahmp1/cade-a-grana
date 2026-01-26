@@ -5,7 +5,7 @@ plugins {
     application
 }
 
-group = "com.financehub"
+group = "com.cadeagrana"
 version = "1.0.0"
 
 repositories {
@@ -52,7 +52,7 @@ tasks {
         manifest {
             attributes(
                 "Main-Class" to "com.financehub.cli.MainKt",
-                "Implementation-Title" to "FinanceHub CLI",
+                "Implementation-Title" to "Cadê a Grana? CLI",
                 "Implementation-Version" to "1.0.0"
             )
         }

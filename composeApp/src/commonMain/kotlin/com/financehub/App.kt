@@ -22,7 +22,7 @@ import com.financehub.domain.usecase.LoadTransactionsUseCase
 import com.financehub.domain.usecase.PreviewTransactionsUseCase
 import com.financehub.presentation.FinanceEvent
 import com.financehub.presentation.FinanceViewModel
-import com.financehub.theme.FinanceHubTheme
+import com.financehub.theme.CadeAGranaTheme
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -53,7 +53,7 @@ fun App(
         )
     }
     
-    FinanceHubTheme {
+    CadeAGranaTheme {
         MainScreen(
             viewModel = viewModel,
             defaultPath = directoryPath,
@@ -77,7 +77,7 @@ fun MainScreen(
                 title = { 
                     Text(
                         if (state.previewMode) "Preview de Transações"
-                        else "FinanceHub - Análise Financeira"
+                        else "Cadê a Grana?"
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
