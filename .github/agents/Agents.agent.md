@@ -72,32 +72,31 @@ UI → FinanceEvent → ViewModel → UseCase → Repository → Parser → Data
 
 ## ⚠️ REGRA CRÍTICA: Design System
 
-**NUNCA USE `MaterialTheme` DIRETAMENTE COMO TEMA RAIZ!**
+**SEMPRE USE COMPONENTES DS (Design System)!**
 
 ✅ **SEMPRE**:
-- Envolver componentes com `FinanceHubTheme { }`
-- Acessar cores via `MaterialTheme.colorScheme.*` (que vêm do DS)
-- Usar `FinanceHubTheme.transactionColor()` para cores semânticas
+- Envolver app com `FinanceHubTheme { }`
+- Usar `DSButton`, `DSCard`, `DSText` em vez de Material components
+- Usar `DSColors` para cores semânticas (ex: `DSColors.Income.main`)
+- Usar `DSSpacing` para espaçamento (ex: `DSSpacing.lg`)
 
 ❌ **NUNCA**:
-- Usar `MaterialTheme { }` como tema raiz
 - Hardcode cores como `Color(0xFF...)` ou `Color.Red`
-- Ignorar o Design System por conveniência
+- Hardcode espaçamento como `16.dp` (use `DSSpacing.lg`)
+- Usar `Button()`, `Card()`, `Text()` diretamente quando existir componente DS
 
 ### Exemplo Correto
 ```kotlin
+import com.financehub.designsystem.components.*
+import com.financehub.designsystem.foundation.*
+import com.financehub.designsystem.tokens.*
+
 @Composable
-fun TransactionCard(isIncome: Boolean) {
-    FinanceHubTheme {  // ← SEMPRE envolva com FinanceHubTheme
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface  // ← Vem do DS
-            )
-        ) {
-            Text(
-                "R$ 100,00",
-                color = FinanceHubTheme.transactionColor(isIncome)  // ← Semântica do DS
-            )
+fun TransactionCard(amount: Double, isIncome: Boolean) {
+    DSCard(variant = CardVariant.DEFAULT) {
+        Column(modifier = Modifier.padding(DSSpacing.md)) {
+            DSText("Transação", variant = TextVariant.TITLE)
+            DSMoneyText(amount = amount, isIncome = isIncome)  // ← Formatação automática
         }
     }
 }
@@ -243,37 +242,29 @@ enum class Category(val displayName: String, val keywords: List<String>) {
 
 ### Criar Novo Componente UI
 ```kotlin
+import com.financehub.designsystem.components.*
+import com.financehub.designsystem.foundation.*
+import com.financehub.designsystem.tokens.*
+
 @Composable
 fun NovoComponente(modifier: Modifier = Modifier) {
-    // ✅ SEMPRE use cores do MaterialTheme.colorScheme (vem do FinanceHubTheme)
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Text("Texto", color = MaterialTheme.colorScheme.onSurface)
+    // ✅ SEMPRE use DSCard e DSText
+    DSCard(variant = CardVariant.DEFAULT) {
+        DSText("Texto", variant = TextVariant.BODY)
     }
 }
 
-// Para botões, use os estilos reutilizáveis:
-Button(
-    onClick = { },
-    colors = FinanceButtonStyles.primaryButtonColors()
-) { Text("Ação Principal") }
-
-OutlinedButton(
-    onClick = { },
-    colors = FinanceButtonStyles.outlinedButtonColors()
-) { Text("Ação Secundária") }
+// Para botões, use DSButton com variants:
+DSButton(onClick = { }, variant = ButtonVariant.PRIMARY) { Text("Ação Principal") }
+DSButton(onClick = { }, variant = ButtonVariant.SECONDARY) { Text("Ação Secundária") }
 ```
 
-**Estilos de Botão Disponíveis:**
-- `FinanceButtonStyles.primaryButtonColors()` - Preto com texto branco
-- `FinanceButtonStyles.outlinedButtonColors()` - Outlined com texto branco
-- `FinanceButtonStyles.positiveButtonColors()` - Verde (confirmar, salvar)
-- `FinanceButtonStyles.negativeButtonColors()` - Vermelho (deletar)
-- `FinanceButtonStyles.outlinedNegativeButtonColors()` - Outlined vermelho (cancelar)
+**Variants de Botão Disponíveis:**
+- `ButtonVariant.PRIMARY` - Preto com texto branco
+- `ButtonVariant.SECONDARY` - Outlined com texto branco
+- `ButtonVariant.POSITIVE` - Verde (confirmar, salvar)
+- `ButtonVariant.NEGATIVE` - Vermelho (deletar)
+- `ButtonVariant.GHOST` - Transparente
 
 ## Troubleshooting
 

@@ -30,7 +30,8 @@ data class Transaction(
     val rawData: String = "",
     val isIgnored: Boolean = false, // Transações ignoradas não entram em cálculos
     val needsReview: Boolean = false, // Marcada para revisão (regra avançada)
-    val customSourceTag: String? = null // Tag customizada pelo usuário para o banco/fonte
+    val customSourceTag: String? = null, // Tag customizada pelo usuário para o banco/fonte
+    val owner: String? = null // Dono da transação: "João", "Daiane", "Compartilhado", null = não definido
 ) {
     val isIncome: Boolean get() = amount > 0
     val isExpense: Boolean get() = amount < 0

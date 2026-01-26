@@ -15,11 +15,13 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.financehub.designsystem.components.*
+import com.financehub.designsystem.foundation.*
+import com.financehub.designsystem.tokens.*
 import com.financehub.domain.model.Category
 import com.financehub.domain.model.Transaction
 import com.financehub.presentation.FinanceEvent
 import com.financehub.presentation.FinanceState
-import com.financehub.theme.FinanceButtonStyles
 import java.io.File
 import kotlin.math.abs
 
@@ -46,122 +48,98 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "FinanceHub - Home",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+            DSText(
+                text = "FinanceHub - Home",
+                variant = TextVariant.HEADLINE
             )
             
             if (state.savedMonths.isNotEmpty()) {
-                OutlinedButton(
+                DSButton(
                     onClick = { showClearDataDialog = true },
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    variant = ButtonVariant.NEGATIVE,
+                    leadingIcon = Icons.Default.Delete
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
                     Text("Limpar Dados")
                 }
             }
         }
         
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer
-            )
-        ) {
+        DSCard(variant = CardVariant.ELEVATED) {
             Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
             ) {
-                Text(
-                    "Como usar:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                DSText(
+                    text = "Como usar:",
+                    variant = TextVariant.TITLE
                 )
-                Text("1. Clique no botão abaixo para selecionar arquivos CSV ou PDF")
-                Text("2. Revise a lista de arquivos selecionados")
-                Text("3. Clique em 'Fazer Preview' para visualizar as transações")
-                Text("4. Edite categorias ou tipos de transação conforme necessário")
-                Text("5. Confirme para processar ou cancele para voltar")
+                DSText(text = "1. Clique no botão abaixo para selecionar arquivos CSV ou PDF")
+                DSText(text = "2. Revise a lista de arquivos selecionados")
+                DSText(text = "3. Clique em 'Fazer Preview' para visualizar as transações")
+                DSText(text = "4. Edite categorias ou tipos de transação conforme necessário")
+                DSText(text = "5. Confirme para processar ou cancele para voltar")
             }
         }
         
-        Button(
+        DSButton(
             onClick = onSelectFiles,
             modifier = Modifier.fillMaxWidth(),
-            colors = FinanceButtonStyles.primaryButtonColors()
+            variant = ButtonVariant.PRIMARY,
+            leadingIcon = Icons.Default.Add
         ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
             Text("Selecionar Arquivos (CSV/PDF)")
         }
         
         // Histórico de dados salvos
         if (state.savedMonths.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                )
-            ) {
+            DSCard(variant = CardVariant.INFO) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "📂 Histórico Salvo (${state.savedMonths.size} meses)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        DSText(
+                            text = "📂 Histórico Salvo (${state.savedMonths.size} meses)",
+                            variant = TextVariant.TITLE
                         )
                         
-                        OutlinedButton(
+                        DSButton(
                             onClick = { onEvent(FinanceEvent.LoadHistoricalData) },
-                            enabled = state.transactions.isEmpty()
+                            enabled = state.transactions.isEmpty(),
+                            variant = ButtonVariant.SECONDARY
                         ) {
                             Text("Carregar Tudo")
                         }
                     }
                     
-                    Text(
-                        state.savedMonths.joinToString(", "),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                    DSText(
+                        text = state.savedMonths.joinToString(", "),
+                        variant = TextVariant.BODY
                     )
                     
-                    Text(
-                        "Os dados salvos serão mesclados automaticamente ao processar novos arquivos",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                    DSText(
+                        text = "Os dados salvos serão mesclados automaticamente ao processar novos arquivos",
+                        variant = TextVariant.CAPTION
                     )
                 }
             }
         }
         
         if (state.selectedFiles.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            DSCard {
                 Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
                 ) {
-                    Text(
-                        "Arquivos Selecionados (${state.selectedFiles.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    DSText(
+                        text = "Arquivos Selecionados (${state.selectedFiles.size})",
+                        variant = TextVariant.TITLE
                     )
                     
                     LazyColumn(
                         modifier = Modifier.heightIn(max = 200.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(DSSpacing.xs)
                     ) {
                         items(state.selectedFiles) { filePath ->
                             FileItem(filePath)
@@ -170,19 +148,18 @@ fun HomeScreen(
                 }
             }
             
-            Button(
+            DSButton(
                 onClick = { onEvent(FinanceEvent.PreviewSelectedFiles) },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isLoading,
-                colors = FinanceButtonStyles.primaryButtonColors()
+                variant = ButtonVariant.PRIMARY,
+                leadingIcon = if (state.isLoading) null else Icons.Default.Check
             ) {
                 if (state.isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(DSSpacing.sm))
                     Text("Processando...")
                 } else {
-                    Icon(Icons.Default.Check, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
                     Text("Fazer Preview das Transações")
                 }
             }
@@ -200,39 +177,36 @@ fun HomeScreen(
     if (showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
-            title = { Text("Limpar Todos os Dados?") },
+            title = { DSText(text = "Limpar Todos os Dados?", variant = TextVariant.TITLE) },
             text = {
                 Column {
-                    Text(
-                        "Esta ação irá remover TODOS os dados salvos:",
-                        fontWeight = FontWeight.Bold
+                    DSText(
+                        text = "Esta ação irá remover TODOS os dados salvos:",
+                        variant = TextVariant.BODY
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Text("• ${state.savedMonths.size} meses de transações")
-                    Text("• Todos os arquivos em ~/.financehub/transactions/")
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Esta ação NÃO PODE ser desfeita!",
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
+                    Spacer(Modifier.height(DSSpacing.sm))
+                    DSText(text = "• ${state.savedMonths.size} meses de transações")
+                    DSText(text = "• Todos os arquivos em ~/.financehub/transactions/")
+                    Spacer(Modifier.height(DSSpacing.sm))
+                    DSText(
+                        text = "Esta ação NÃO PODE ser desfeita!",
+                        variant = TextVariant.EXPENSE
                     )
                 }
             },
             confirmButton = {
-                Button(
+                DSButton(
                     onClick = {
                         onEvent(FinanceEvent.ClearAllData)
                         showClearDataDialog = false
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    )
+                    variant = ButtonVariant.NEGATIVE
                 ) {
                     Text("Sim, Limpar Tudo")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showClearDataDialog = false }) {
+                DSTextButton(onClick = { showClearDataDialog = false }) {
                     Text("Cancelar")
                 }
             }
@@ -250,32 +224,30 @@ private fun FileItem(filePath: String) {
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surfaceVariant,
-                MaterialTheme.shapes.small
+                DSColors.Dark.surfaceElevated,
+                DSRadius.sm
             )
-            .padding(8.dp),
+            .padding(DSSpacing.sm),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(DSSpacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 Icons.Default.Add,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary
+                tint = DSColors.primary
             )
             Column {
-                Text(
-                    fileName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                DSText(
+                    text = fileName,
+                    variant = TextVariant.BODY
                 )
-                Text(
-                    "${fileSize}KB",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                DSText(
+                    text = "${fileSize}KB",
+                    variant = TextVariant.CAPTION
                 )
             }
         }
@@ -300,13 +272,12 @@ fun TransactionPreviewScreen(
         PreviewHeader(state)
         
         // Botão de gerenciar padrões
-        OutlinedButton(
+        DSButton(
             onClick = { onEvent(FinanceEvent.ShowIgnorePatternsDialog) },
             modifier = Modifier.fillMaxWidth(),
-            colors = FinanceButtonStyles.outlinedButtonColors()
+            variant = ButtonVariant.SECONDARY,
+            leadingIcon = Icons.Default.Settings
         ) {
-            Icon(Icons.Default.Settings, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
             Text("Gerenciar Padrões de Ignorar (${state.ignorePatterns.patterns.size})")
         }
         
@@ -366,20 +337,13 @@ fun TransactionPreviewScreen(
 
 @Composable
 private fun PreviewHeader(state: FinanceState) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
-    ) {
+    DSCard(variant = CardVariant.ELEVATED) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
         ) {
-            Text(
-                "Preview de Transações",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+            DSText(
+                text = "Preview de Transações",
+                variant = TextVariant.HEADLINE
             )
             
             Row(
@@ -387,51 +351,43 @@ private fun PreviewHeader(state: FinanceState) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(
-                        "${state.pendingTransactions.size}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                    DSText(
+                        text = "${state.pendingTransactions.size}",
+                        variant = TextVariant.DISPLAY
                     )
-                    Text("Transações", style = MaterialTheme.typography.bodySmall)
+                    DSText(text = "Transações", variant = TextVariant.CAPTION)
                 }
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "${state.pendingTransactions.count { it.isIgnored }}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (state.pendingTransactions.any { it.isIgnored }) MaterialTheme.colorScheme.error else Color.Unspecified
+                    DSText(
+                        text = "${state.pendingTransactions.count { it.isIgnored }}",
+                        variant = if (state.pendingTransactions.any { it.isIgnored }) TextVariant.EXPENSE else TextVariant.DISPLAY
                     )
-                    Text("Ignoradas", style = MaterialTheme.typography.bodySmall)
+                    DSText(text = "Ignoradas", variant = TextVariant.CAPTION)
                 }
                 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "${state.pendingTransactions.count { it.needsReview }}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (state.pendingTransactions.any { it.needsReview }) MaterialTheme.colorScheme.error else Color.Unspecified
+                    DSText(
+                        text = "${state.pendingTransactions.count { it.needsReview }}",
+                        variant = if (state.pendingTransactions.any { it.needsReview }) TextVariant.EXPENSE else TextVariant.DISPLAY
                     )
-                    Text("Revisão", style = MaterialTheme.typography.bodySmall)
+                    DSText(text = "Revisão", variant = TextVariant.CAPTION)
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "${state.changeLog.size}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (state.changeLog.isNotEmpty()) MaterialTheme.colorScheme.primary else Color.Unspecified
+                    DSText(
+                        text = "${state.changeLog.size}",
+                        variant = if (state.changeLog.isNotEmpty()) TextVariant.INCOME else TextVariant.DISPLAY
                     )
-                    Text("Editadas", style = MaterialTheme.typography.bodySmall)
+                    DSText(text = "Editadas", variant = TextVariant.CAPTION)
                 }
             }
             
             if (state.changeLog.isNotEmpty()) {
-                HorizontalDivider()
-                Text(
-                    "Você fez ${state.changeLog.size} alteração(ões). Use 'Exportar Log' para salvar.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                HorizontalDivider(color = DSColors.Dark.borderSubtle)
+                DSText(
+                    text = "Você fez ${state.changeLog.size} alteração(ões). Use 'Exportar Log' para salvar.",
+                    variant = TextVariant.CAPTION
                 )
             }
         }
@@ -443,20 +399,11 @@ private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit
 ) {
-    OutlinedTextField(
+    DSSearchField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("Buscar por descrição ou categoria...") },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Limpar")
-                }
-            }
-        },
-        singleLine = true
+        placeholder = "Buscar por descrição ou categoria...",
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
@@ -469,40 +416,31 @@ private fun EditableTransactionCard(
 ) {
     var showCategoryMenu by remember { mutableStateOf(false) }
     
-    Card(
+    DSCard(
         modifier = Modifier
             .fillMaxWidth()
             .alpha(if (transaction.isIgnored && !transaction.needsReview) 0.5f else 1f),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = if (transaction.needsReview) {
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            )
-        } else {
-            CardDefaults.cardColors()
-        }
+        variant = if (transaction.needsReview) CardVariant.WARNING else CardVariant.DEFAULT,
+        elevation = DSElevation.sm
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
         ) {
             // Badge de revisão
             if (transaction.needsReview) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(DSSpacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Warning,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = DSColors.warning
                     )
-                    Text(
-                        "NECESSITA REVISÃO - Regra Avançada",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
+                    DSText(
+                        text = "NECESSITA REVISÃO - Regra Avançada",
+                        variant = TextVariant.LABEL
                     )
                 }
             }
@@ -514,36 +452,30 @@ private fun EditableTransactionCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        transaction.description,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                    DSText(
+                        text = transaction.description,
+                        variant = TextVariant.BODY
                     )
-                    Text(
-                        transaction.date.toString(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    DSText(
+                        text = transaction.date.toString(),
+                        variant = TextVariant.CAPTION
                     )
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "R$ ${String.format("%.2f", abs(transaction.amount))}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (transaction.isIncome) 
-                            MaterialTheme.colorScheme.tertiary 
-                        else 
-                            MaterialTheme.colorScheme.error
+                    DSMoneyText(
+                        amount = abs(transaction.amount),
+                        isIncome = transaction.isIncome,
+                        size = MoneyTextSize.MEDIUM
                     )
-                    Text(
-                        transaction.source.displayName,
-                        style = MaterialTheme.typography.bodySmall
+                    DSText(
+                        text = transaction.source.displayName,
+                        variant = TextVariant.CAPTION
                     )
                 }
             }
             
-            HorizontalDivider()
+            HorizontalDivider(color = DSColors.Dark.borderSubtle)
             
             // Linha 2: Controles de edição
             Row(
@@ -624,41 +556,38 @@ private fun PreviewActions(
     onExportLog: () -> Unit
 ) {
     Column(
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
     ) {
         if (state.changeLog.isNotEmpty()) {
-            OutlinedButton(
+            DSButton(
                 onClick = onExportLog,
                 modifier = Modifier.fillMaxWidth(),
-                colors = FinanceButtonStyles.outlinedButtonColors()
+                variant = ButtonVariant.SECONDARY,
+                leadingIcon = Icons.Default.Info
             ) {
-                Icon(Icons.Default.Info, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
                 Text("Exportar Log de Mudanças")
             }
         }
         
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(DSSpacing.sm)
         ) {
-            OutlinedButton(
+            DSButton(
                 onClick = onCancel,
                 modifier = Modifier.weight(1f),
-                colors = FinanceButtonStyles.outlinedNegativeButtonColors()
+                variant = ButtonVariant.NEGATIVE,
+                leadingIcon = Icons.Default.Close
             ) {
-                Icon(Icons.Default.Close, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
                 Text("Cancelar")
             }
             
-            Button(
+            DSButton(
                 onClick = onConfirm,
                 modifier = Modifier.weight(1f),
-                colors = FinanceButtonStyles.positiveButtonColors()
+                variant = ButtonVariant.POSITIVE,
+                leadingIcon = Icons.Default.CheckCircle
             ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
                 Text("Confirmar e Processar")
             }
         }

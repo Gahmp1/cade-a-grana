@@ -25,11 +25,8 @@ class GenerateMonthReportsUseCase(
                 repository.generateMonthReport(yearMonth, transactions)
             }
             
-            // Priorizar meses com mais fontes de dados
-            val sortedReports = allReports.sortedWith(
-                compareByDescending<MonthReport> { it.sourceCount }
-                    .thenByDescending { it.yearMonth }
-            )
+            // Ordenar por data decrescente (meses mais recentes primeiro)
+            val sortedReports = allReports.sortedByDescending { it.yearMonth }
             
             val selectedReports = sortedReports.take(maxReports)
             

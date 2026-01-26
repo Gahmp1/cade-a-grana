@@ -9,7 +9,8 @@ import kotlinx.serialization.Serializable
 data class FileMetadata(
     val filePath: String,
     val customLabel: String, // Nome customizado pelo usuário (obrigatório)
-    val detectedSource: DataSource // Fonte detectada automaticamente pelo parser
+    val detectedSource: DataSource, // Fonte detectada automaticamente pelo parser
+    val owner: String? = null // Dono das transações deste arquivo (João, Daiane, Compartilhado, null)
 ) {
     val fileName: String get() = filePath.split("/").last()
 }

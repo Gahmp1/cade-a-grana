@@ -13,6 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.financehub.designsystem.components.*
+import com.financehub.designsystem.foundation.*
+import com.financehub.designsystem.tokens.*
 import com.financehub.presentation.FinanceEvent
 import com.financehub.presentation.FinanceState
 
@@ -47,52 +50,49 @@ fun IgnorePatternsDialog(
                     .verticalScroll(scrollState),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    "Transações contendo essas palavras serão automaticamente marcadas como ignoradas.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                DSText(
+                    text = "Transações contendo essas palavras serão automaticamente marcadas como ignoradas.",
+                    variant = TextVariant.CAPTION
                 )
                 
                 // Seção: Padrões Simples
-                Text(
-                    "Padrões Simples",
-                    style = MaterialTheme.typography.titleMedium
+                DSText(
+                    text = "Padrões Simples",
+                    variant = TextVariant.TITLE
                 )
                 
                 // Campo para adicionar novo padrão
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(DSSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    DSTextField(
                         value = newPattern,
                         onValueChange = { newPattern = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Ex: aporte, resgate...") },
-                        singleLine = true
+                        placeholder = "Ex: aporte, resgate..."
                     )
                     
-                    IconButton(
+                    DSIconButton(
                         onClick = {
                             if (newPattern.isNotBlank()) {
                                 onEvent(FinanceEvent.AddIgnorePattern(newPattern))
                                 newPattern = ""
                             }
                         },
-                        enabled = newPattern.isNotBlank()
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = "Adicionar")
-                    }
+                        enabled = newPattern.isNotBlank(),
+                        icon = Icons.Default.Add,
+                        contentDescription = "Adicionar"
+                    )
                 }
                 
                 // Lista de padrões simples
                 if (state.ignorePatterns.patterns.isEmpty()) {
-                    Text(
-                        "Nenhum padrão configurado",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                    DSText(
+                        text = "Nenhum padrão configurado",
+                        variant = TextVariant.CAPTION,
+                        modifier = Modifier.padding(vertical = DSSpacing.sm)
                     )
                 } else {
                     LazyColumn(
@@ -118,74 +118,59 @@ fun IgnorePatternsDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        "Regras Avançadas (${state.ignorePatterns.advancedRules.size})",
-                        style = MaterialTheme.typography.titleMedium
+                    DSText(
+                        text = "Regras Avançadas (${state.ignorePatterns.advancedRules.size})",
+                        variant = TextVariant.TITLE
                     )
-                    IconButton(onClick = { showAdvancedSection = !showAdvancedSection }) {
-                        Icon(
-                            if (showAdvancedSection) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null
-                        )
-                    }
+                    DSIconButton(
+                        onClick = { showAdvancedSection = !showAdvancedSection },
+                        icon = if (showAdvancedSection) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null
+                    )
                 }
                 
                 if (showAdvancedSection) {
-                    Text(
-                        "Combine padrão de texto + condições de valor. Transações marcadas aparecem para revisão.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    DSText(
+                        text = "Combine padrão de texto + condições de valor. Transações marcadas aparecem para revisão.",
+                        variant = TextVariant.CAPTION
                     )
                     
                     // Formulário de regra avançada
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
+                    DSCard(variant = CardVariant.DEFAULT) {
                         Column(
-                            modifier = Modifier.padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
                         ) {
-                            OutlinedTextField(
+                            DSTextField(
                                 value = advPattern,
                                 onValueChange = { advPattern = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Padrão de texto") },
-                                placeholder = { Text("Ex: pix recebido") },
-                                singleLine = true
+                                label = "Padrão de texto",
+                                placeholder = "Ex: pix recebido"
                             )
                             
-                            OutlinedTextField(
+                            DSTextField(
                                 value = advMinAmount,
                                 onValueChange = { advMinAmount = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Valor mínimo (R$)") },
-                                placeholder = { Text("3000") },
-                                singleLine = true
+                                label = "Valor mínimo (R$)",
+                                placeholder = "3000"
                             )
                             
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = advRequiresInteger,
-                                    onCheckedChange = { advRequiresInteger = it }
-                                )
-                                Text("Apenas valores redondos (múltiplos de 1000)")
-                            }
+                            DSCheckbox(
+                                checked = advRequiresInteger,
+                                onCheckedChange = { advRequiresInteger = it },
+                                label = "Apenas valores redondos (múltiplos de 1000)"
+                            )
                             
-                            OutlinedTextField(
+                            DSTextField(
                                 value = advDescription,
                                 onValueChange = { advDescription = it },
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text("Descrição (opcional)") },
-                                placeholder = { Text("Ex: Transferências grandes") },
-                                singleLine = true
+                                label = "Descrição (opcional)",
+                                placeholder = "Ex: Transferências grandes"
                             )
                             
-                            Button(
+                            DSButton(
                                 onClick = {
                                     val amount = advMinAmount.toDoubleOrNull() ?: 0.0
                                     if (advPattern.isNotBlank() && amount > 0) {
@@ -202,10 +187,10 @@ fun IgnorePatternsDialog(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = advPattern.isNotBlank() && advMinAmount.toDoubleOrNull() != null
+                                enabled = advPattern.isNotBlank() && advMinAmount.toDoubleOrNull() != null,
+                                variant = ButtonVariant.PRIMARY,
+                                leadingIcon = Icons.Default.Add
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null)
-                                Spacer(Modifier.width(8.dp))
                                 Text("Adicionar Regra Avançada")
                             }
                         }
@@ -231,7 +216,7 @@ fun IgnorePatternsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onEvent(FinanceEvent.HideIgnorePatternsDialog) }) {
+            DSTextButton(onClick = { onEvent(FinanceEvent.HideIgnorePatternsDialog) }) {
                 Text("Fechar")
             }
         }
@@ -243,45 +228,34 @@ private fun PatternItem(
     pattern: String,
     onRemove: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
+    DSCardCompact(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(DSSpacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
+                    tint = DSColors.expense,
                     modifier = Modifier.size(18.dp)
                 )
-                Text(
-                    pattern,
-                    style = MaterialTheme.typography.bodyMedium
+                DSText(
+                    text = pattern,
+                    variant = TextVariant.BODY
                 )
             }
             
-            IconButton(
+            DSIconButton(
                 onClick = onRemove,
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "Remover",
-                    modifier = Modifier.size(18.dp)
-                )
-            }
+                icon = Icons.Default.Close,
+                contentDescription = "Remover",
+                size = ComponentSize.SM
+            )
         }
     }
 }
@@ -291,17 +265,9 @@ private fun AdvancedRuleItem(
     rule: com.financehub.domain.model.AdvancedIgnoreRule,
     onRemove: () -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
+    DSCard(variant = CardVariant.WARNING) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(DSSpacing.xs)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -309,55 +275,49 @@ private fun AdvancedRuleItem(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        rule.pattern,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
+                    DSText(
+                        text = rule.pattern,
+                        variant = TextVariant.TITLE
                     )
                     if (rule.description.isNotBlank()) {
-                        Text(
-                            rule.description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                        DSText(
+                            text = rule.description,
+                            variant = TextVariant.CAPTION
                         )
                     }
                 }
                 
-                IconButton(
+                DSIconButton(
                     onClick = onRemove,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Close,
-                        contentDescription = "Remover",
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                    icon = Icons.Default.Close,
+                    contentDescription = "Remover",
+                    size = ComponentSize.SM
+                )
             }
             
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(DSSpacing.md),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(DSSpacing.xs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Warning,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.error
+                        tint = DSColors.warning
                     )
-                    Text(
-                        "≥ R$ ${String.format("%.0f", rule.minAmount)}",
-                        style = MaterialTheme.typography.bodySmall
+                    DSText(
+                        text = "≥ R$ ${String.format("%.0f", rule.minAmount)}",
+                        variant = TextVariant.CAPTION
                     )
                 }
                 
                 if (rule.requiresIntegerValue) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(DSSpacing.xs),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -365,9 +325,9 @@ private fun AdvancedRuleItem(
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )
-                        Text(
-                            "Redondo",
-                            style = MaterialTheme.typography.bodySmall
+                        DSText(
+                            text = "Redondo",
+                            variant = TextVariant.CAPTION
                         )
                     }
                 }

@@ -1,120 +1,116 @@
 package com.financehub.data.parser
 
+import com.financehub.data.parser.common.BrazilianPatterns
+import com.financehub.data.parser.common.CsvParser
 import com.financehub.domain.model.Category
 import com.financehub.domain.model.DataSource
 import com.financehub.domain.model.Transaction
-import kotlinx.datetime.LocalDate
 
 /**
- * Parser para arquivos CSV do cartão Itaú
- * Formato esperado: data,descricao,valor
+ * Parser para arquivos CSV de fatura do cartão Itaú.
+ * 
+ * Formato esperado:
+ * - Header: "data,lançamento,valor"
+ * - Data: yyyy-MM-dd (ISO)
+ * - Valor: decimal simples (66.9)
+ * - Delimitador: vírgula
  */
-class ItauCreditCardParser : FileParser {
+class ItauCreditCardParser : CsvParser() {
     
-    override suspend fun parse(fileContent: String, fileName: String): List<Transaction> {
-        val transactions = mutableListOf<Transaction>()
-        val lines = fileContent.lines()
+    override val bankIdentifier = "itau_cc"
+    override val displayName = "Fatura Cartão Itaú"
+    override val dataSource = DataSource.ITAU_CREDIT_CARD
+    
+    override val delimiter = ","
+    override val hasHeader = true
+    override val minColumns = 3
+    
+    override val dateColumnIndex = 0
+    override val descriptionColumnIndex = 1
+    override val amountColumnIndex = 2
+    
+    // Keywords para detecção automática
+    override val contentKeywords = listOf("itau", "itaú", "fatura")
+    override val headerPatterns = listOf("data,lançamento,valor", "data,lancamento,valor")
+    
+    override fun parseRow(
+        columns: List<String>,
+        fileName: String,
+        lineIndex: Int,
+        rawLine: String
+    ): Transaction? {
+        val dateStr = columns.getOrNull(dateColumnIndex)?.trim() ?: return null
+        val description = columns.getOrNull(descriptionColumnIndex)?.trim() ?: return null
+        val amountStr = columns.getOrNull(amountColumnIndex)?.trim()
+            ?.replace("R$", "")?.trim() ?: return null
         
-        lines.forEachIndexed { index, line ->
-            if (line.isBlank()) return@forEachIndexed
-            
-            // Pular header se existir
-            if (index == 0 && line.lowercase().contains("data")) return@forEachIndexed
-            
-            try {
-                val parts = line.split(",")
-                
-                // Validar que temos pelo menos 3 campos
-                if (parts.size < 3) {
-                    return@forEachIndexed
-                }
-                
-                val dateStr = parts[0].trim()
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim()
-                    .replace("R$", "")
-                    .trim()
-                
-                // Validar campos não vazios
-                if (dateStr.isEmpty() || description.isEmpty() || amountStr.isEmpty()) {
-                    return@forEachIndexed
-                }
-                
-                // Validar formato de data básico (dd/MM/yyyy ou yyyy-MM-dd)
-                if (!dateStr.matches(Regex("\\d{2}/\\d{2}/\\d{4}")) && 
-                    !dateStr.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
-                    return@forEachIndexed
-                }
-                
-                val date = parseDate(dateStr)
-                val amount = amountStr.toDoubleOrNull()
-                
-                // Se não conseguir converter o valor, pular linha
-                if (amount == null) {
-                    return@forEachIndexed
-                }
-                
-                // No cartão de crédito:
-                // - Valores positivos são GASTOS (saída) -> converter para negativo
-                // - Valores negativos são ESTORNOS/PAGAMENTOS (entrada) -> manter positivo
-                val normalizedAmount = -amount
-                
-                val category = Category.classify(description)
-                
-                transactions.add(
-                    Transaction(
-                        id = generateId(fileName, index, description),
-                        date = date,
-                        description = description,
-                        amount = normalizedAmount,
-                        category = category,
-                        source = DataSource.ITAU_CREDIT_CARD,
-                        rawData = line
-                    )
-                )
-            } catch (e: Exception) {
-                // Silenciosamente pular linhas com erro
-            }
+        // Validar campos não vazios
+        if (dateStr.isEmpty() || description.isEmpty() || amountStr.isEmpty()) {
+            return null
         }
         
-        return transactions
+        // Validar formato de data (aceita dd/MM/yyyy ou yyyy-MM-dd)
+        if (!BrazilianPatterns.DATE_BR.matches(dateStr) && 
+            !BrazilianPatterns.DATE_ISO.matches(dateStr)) {
+            return null
+        }
+        
+        // Parsear data
+        val date = BrazilianPatterns.parseDateAuto(dateStr) ?: return null
+        
+        // Parsear valor (formato decimal simples: 66.9)
+        val rawAmount = BrazilianPatterns.parseValueDecimal(amountStr) ?: return null
+        
+        // No cartão de crédito:
+        // - Valores positivos são GASTOS (saída) -> converter para negativo
+        // - Valores negativos são ESTORNOS/PAGAMENTOS (entrada) -> manter positivo
+        val amount = -rawAmount
+        
+        val category = Category.classify(description)
+        
+        return Transaction(
+            id = generateIdWithDate(fileName, lineIndex, description, dateStr),
+            date = date,
+            description = description,
+            amount = amount,
+            category = category,
+            source = dataSource,
+            rawData = rawLine
+        )
     }
     
     override fun supports(fileName: String): Boolean {
         // Ignorar relatórios gerados
         if (fileName.startsWith("relatorio")) return false
         
-        return (fileName.startsWith("Itau-") || fileName.startsWith("Itau")) && 
-               fileName.endsWith(".csv") &&
-               !fileName.contains("extrato", ignoreCase = true)
+        val lowerName = fileName.lowercase()
+        
+        // Aceitar ambos formatos: "Itau-fatura..." ou "fatura-itau..."
+        return lowerName.endsWith(".csv") &&
+               lowerName.contains("itau") &&
+               (lowerName.contains("fatura") || lowerName.contains("cartao") || lowerName.contains("cartão")) &&
+               !lowerName.contains("extrato")
     }
     
-    private fun parseDate(dateStr: String): LocalDate {
-        return try {
-            // Formato: yyyy-MM-dd
-            if (dateStr.contains("-")) {
-                val parts = dateStr.split("-")
-                LocalDate(
-                    year = parts[0].toInt(),
-                    monthNumber = parts[1].toInt(),
-                    dayOfMonth = parts[2].toInt()
-                )
-            } else {
-                // Formato: dd/MM/yyyy
-                val parts = dateStr.split("/")
-                LocalDate(
-                    year = parts[2].toInt(),
-                    monthNumber = parts[1].toInt(),
-                    dayOfMonth = parts[0].toInt()
-                )
-            }
-        } catch (e: Exception) {
-            // Fallback para data padrão
-            LocalDate(2025, 1, 1)
+    override fun detectConfidence(fileName: String, contentPreview: String): Float {
+        val extension = fileName.substringAfterLast(".").lowercase()
+        if (extension != "csv") return 0f
+        
+        var confidence = 0f
+        val firstLine = contentPreview.lines().firstOrNull()?.lowercase() ?: ""
+        
+        // Header exato = alta confiança
+        if (firstLine.contains("data,lançamento,valor") || 
+            firstLine.contains("data,lancamento,valor")) {
+            confidence += 0.6f
         }
-    }
-    
-    private fun generateId(fileName: String, index: Int, description: String): String {
-        return "${fileName}_${index}_${description.hashCode()}"
+        
+        // Keywords no nome do arquivo
+        val lowerName = fileName.lowercase()
+        if (lowerName.contains("itau")) confidence += 0.2f
+        if (lowerName.contains("fatura")) confidence += 0.1f
+        if (lowerName.contains("cartao") || lowerName.contains("cartão")) confidence += 0.1f
+        
+        return confidence.coerceIn(0f, 1f)
     }
 }

@@ -1,6 +1,7 @@
 package com.financehub.data.repository
 
 import com.financehub.data.parser.*
+import com.financehub.data.parser.common.BaseParser
 import com.financehub.domain.model.ConsolidatedReport
 import com.financehub.domain.model.MonthReport
 import com.financehub.domain.model.Transaction
@@ -13,14 +14,43 @@ import java.io.File
 
 /**
  * Implementação do TransactionRepository
+ * 
+ * Usa sistema de detecção automática de parsers baseado em:
+ * 1. Extensão do arquivo
+ * 2. Nome do arquivo (keywords)
+ * 3. Conteúdo do arquivo (detectConfidence)
  */
 class TransactionRepositoryImpl(
     private val fileReader: FileReader
 ) : TransactionRepository {
     
+    /**
+     * Lista de parsers disponíveis.
+     * Ordem importa: parsers mais específicos primeiro.
+     */
     private val parsers: List<FileParser> = listOf(
+        // Itaú Parsers (CSV, TXT, PDF)
         ItauCreditCardParser(),
         ItauBankStatementParser(),
+        ItauPdfParser(),
+        // Nubank Parsers (CSV, PDF)
+        NubankCsvParser(),
+        NubankPdfParser(),
+        // Mercado Pago (CSV)
+        MercadoPagoCsvParser(),
+        // Bradesco (CSV, PDF)
+        BradescoCsvParser(),
+        BradescoPdfParser(),
+        // Santander (CSV, PDF)
+        SantanderCsvParser(),
+        SantanderPdfParser(),
+        // Caixa (CSV, PDF)
+        CaixaCsvParser(),
+        CaixaPdfParser(),
+        // Banco do Brasil (CSV, PDF)
+        BancoBrasilCsvParser(),
+        BancoBrasilPdfParser(),
+        // PicPay (PDF)
         PicPayStatementParser()
     )
     
@@ -46,15 +76,71 @@ class TransactionRepositoryImpl(
     override suspend fun loadTransactionsFromFile(filePath: String): List<Transaction> {
         val fileName = filePath.substringAfterLast("/")
         
-        val parser = parsers.firstOrNull { it.supports(fileName) }
-            ?: return emptyList()
+        // Primeiro: tentar por supports() (rápido, baseado em nome)
+        var parser = parsers.firstOrNull { it.supports(fileName) }
+        
+        // Se não encontrou, tentar detecção por conteúdo
+        if (parser == null) {
+            parser = detectParserByContent(filePath, fileName)
+        }
+        
+        if (parser == null) {
+            println("   ⚠️ Nenhum parser encontrado para: $fileName")
+            logAvailableParsers(fileName)
+            return emptyList()
+        }
         
         return try {
             val content = fileReader.readFile(filePath)
+            val parserName = (parser as? BaseParser)?.displayName ?: parser::class.simpleName
+            println("   🔧 Usando parser: $parserName")
             parser.parse(content, fileName)
         } catch (e: Exception) {
             println("Error parsing file $fileName: ${e.message}")
             emptyList()
+        }
+    }
+    
+    /**
+     * Detecta o melhor parser baseado no conteúdo do arquivo
+     */
+    private suspend fun detectParserByContent(filePath: String, fileName: String): FileParser? {
+        return try {
+            // Ler primeiras linhas para análise
+            val content = fileReader.readFile(filePath)
+            val preview = content.lines().take(20).joinToString("\n")
+            
+            // Calcular confiança de cada parser
+            val parserConfidences = parsers.mapNotNull { parser ->
+                if (parser is BaseParser) {
+                    val confidence = parser.detectConfidence(fileName, preview)
+                    if (confidence > 0.3f) { // Threshold mínimo
+                        Pair(parser, confidence)
+                    } else null
+                } else null
+            }
+            
+            if (parserConfidences.isNotEmpty()) {
+                val best = parserConfidences.maxByOrNull { it.second }!!
+                println("   🔍 Detecção automática: ${best.first.displayName} (${(best.second * 100).toInt()}% confiança)")
+                best.first
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
+     * Log para debug: mostra quais parsers foram testados
+     */
+    private fun logAvailableParsers(fileName: String) {
+        println("   📋 Parsers disponíveis:")
+        parsers.forEach { parser ->
+            val name = (parser as? BaseParser)?.displayName ?: parser::class.simpleName
+            val supports = parser.supports(fileName)
+            println("      - $name: supports=$supports")
         }
     }
     

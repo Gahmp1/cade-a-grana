@@ -3,6 +3,7 @@ package com.financehub.presentation
 import com.financehub.domain.model.ChangeLogEntry
 import com.financehub.domain.model.ConsolidatedReport
 import com.financehub.domain.model.FileMetadata
+import com.financehub.domain.model.Household
 import com.financehub.domain.model.IgnorePatterns
 import com.financehub.domain.model.MonthReport
 import com.financehub.domain.model.Transaction
@@ -34,7 +35,12 @@ data class FinanceState(
     val showIgnorePatternsDialog: Boolean = false,
     
     // Historical data
-    val savedMonths: List<String> = emptyList()
+    val savedMonths: List<String> = emptyList(),
+    
+    // Household (Casa) - visão conjunta
+    val household: Household = Household(),
+    val showHouseholdView: Boolean = false,
+    val selectedMonthDetail: String? = null // Mês selecionado para visão detalhada
 )
 
 /**
@@ -71,8 +77,15 @@ sealed class FinanceEvent {
         val description: String
     ) : FinanceEvent()
     data class RemoveAdvancedIgnoreRule(val rule: com.financehub.domain.model.AdvancedIgnoreRule) : FinanceEvent()    
+    
     // Historical data events
     object LoadHistoricalData : FinanceEvent()
     object ClearReports : FinanceEvent()
     object ClearAllData : FinanceEvent()
+    
+    // Household (Casa) events
+    object ToggleHouseholdView : FinanceEvent()
+    data class SetTransactionOwner(val transactionId: String, val owner: String?) : FinanceEvent()
+    data class ShowMonthDetail(val yearMonth: String) : FinanceEvent()
+    object CloseMonthDetail : FinanceEvent()
 }

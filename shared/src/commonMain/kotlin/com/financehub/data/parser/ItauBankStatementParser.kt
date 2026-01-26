@@ -1,105 +1,110 @@
 package com.financehub.data.parser
 
+import com.financehub.data.parser.common.BrazilianPatterns
+import com.financehub.data.parser.common.DelimitedTextParser
 import com.financehub.domain.model.Category
 import com.financehub.domain.model.DataSource
 import com.financehub.domain.model.Transaction
-import kotlinx.datetime.LocalDate
 
 /**
- * Parser para extrato bancário Itaú (TXT)
- * Formato esperado: data;descricao;valor
+ * Parser para extrato bancário Itaú (TXT/CSV).
+ * 
+ * Formato esperado:
+ * - Delimitador: ponto-e-vírgula (;)
+ * - Data: dd/MM/yyyy
+ * - Valor: formato BR com vírgula decimal (1.234,56)
+ * - Sem header
  */
-class ItauBankStatementParser : FileParser {
+class ItauBankStatementParser : DelimitedTextParser() {
     
-    override suspend fun parse(fileContent: String, fileName: String): List<Transaction> {
-        val transactions = mutableListOf<Transaction>()
-        val lines = fileContent.lines()
+    override val bankIdentifier = "itau_bank"
+    override val displayName = "Extrato Bancário Itaú"
+    override val dataSource = DataSource.ITAU_BANK_STATEMENT
+    
+    override val delimiter = ";"
+    override val hasHeader = false
+    override val minColumns = 3
+    
+    override val dateColumnIndex = 0
+    override val descriptionColumnIndex = 1
+    override val amountColumnIndex = 2
+    
+    // Keywords para detecção automática
+    override val contentKeywords = listOf("itau", "itaú", "extrato")
+    
+    override fun parseRow(
+        columns: List<String>,
+        fileName: String,
+        lineIndex: Int,
+        rawLine: String
+    ): Transaction? {
+        val dateStr = columns.getOrNull(dateColumnIndex)?.trim() ?: return null
+        val description = columns.getOrNull(descriptionColumnIndex)?.trim() ?: return null
+        val amountStr = columns.getOrNull(amountColumnIndex)?.trim() ?: return null
         
-        lines.forEachIndexed { index, line ->
-            if (line.isBlank()) return@forEachIndexed
-            
-            // Pular header se existir
-            if (index == 0 && line.lowercase().contains("data")) return@forEachIndexed
-            
-            try {
-                val parts = line.split(";")
-                
-                // Validar que temos pelo menos 3 campos
-                if (parts.size < 3) {
-                    return@forEachIndexed
-                }
-                
-                val dateStr = parts[0].trim()
-                val description = parts[1].trim()
-                val amountStr = parts[2].trim()
-                    .replace("R$", "")
-                    .replace(".", "")  // Remove separador de milhar
-                    .replace(",", ".")  // Troca vírgula por ponto decimal
-                    .trim()
-                
-                // Validar campos não vazios
-                if (dateStr.isEmpty() || description.isEmpty() || amountStr.isEmpty()) {
-                    return@forEachIndexed
-                }
-                
-                // Validar formato de data básico (dd/MM/yyyy)
-                if (!dateStr.matches(Regex("\\d{2}/\\d{2}/\\d{4}"))) {
-                    return@forEachIndexed
-                }
-                
-                val date = parseDate(dateStr)
-                val amount = amountStr.toDoubleOrNull()
-                
-                // Se não conseguir converter o valor, pular linha
-                if (amount == null) {
-                    return@forEachIndexed
-                }
-                
-                // No extrato bancário:
-                // - Valores positivos são ENTRADAS (receita)
-                // - Valores negativos são SAÍDAS (gastos)
-                
-                val category = Category.classify(description)
-                
-                transactions.add(
-                    Transaction(
-                        id = generateId(fileName, index, description),
-                        date = date,
-                        description = description,
-                        amount = amount,
-                        category = category,
-                        source = DataSource.ITAU_BANK_STATEMENT,
-                        rawData = line
-                    )
-                )
-            } catch (e: Exception) {
-                // Silenciosamente pular linhas com erro
-            }
+        // Validar campos não vazios
+        if (dateStr.isEmpty() || description.isEmpty() || amountStr.isEmpty()) {
+            return null
         }
         
-        return transactions
+        // Validar formato de data (dd/MM/yyyy)
+        if (!BrazilianPatterns.DATE_BR.matches(dateStr)) {
+            return null
+        }
+        
+        // Parsear data
+        val date = BrazilianPatterns.parseDateBR(dateStr) ?: return null
+        
+        // Parsear valor (detecta automaticamente BR ou decimal)
+        val amount = BrazilianPatterns.parseValueAuto(amountStr) ?: return null
+        
+        // No extrato bancário:
+        // - Valores positivos são ENTRADAS (receita)
+        // - Valores negativos são SAÍDAS (gastos)
+        
+        val category = Category.classify(description)
+        
+        return Transaction(
+            id = generateIdWithDate(fileName, lineIndex, description, dateStr),
+            date = date,
+            description = description,
+            amount = amount,
+            category = category,
+            source = dataSource,
+            rawData = rawLine
+        )
     }
     
     override fun supports(fileName: String): Boolean {
         // Ignorar relatórios gerados
         if (fileName.startsWith("relatorio")) return false
         
-        return (fileName.startsWith("Itau-") || fileName.startsWith("Itau")) &&
-               fileName.contains("extrato", ignoreCase = true) &&
-               (fileName.endsWith(".txt") || fileName.endsWith(".csv"))
+        val lowerName = fileName.lowercase()
+        
+        // Aceitar ambos formatos: "Itau-extrato..." ou "extrato-itau..."
+        return (lowerName.endsWith(".txt") || lowerName.endsWith(".csv")) &&
+               lowerName.contains("itau") &&
+               lowerName.contains("extrato")
     }
     
-    private fun parseDate(dateStr: String): LocalDate {
-        // Formato: dd/MM/yyyy
-        val parts = dateStr.split("/")
-        return LocalDate(
-            year = parts[2].toInt(),
-            monthNumber = parts[1].toInt(),
-            dayOfMonth = parts[0].toInt()
-        )
-    }
-    
-    private fun generateId(fileName: String, index: Int, description: String): String {
-        return "${fileName}_${index}_${description.hashCode()}"
+    override fun detectConfidence(fileName: String, contentPreview: String): Float {
+        val extension = fileName.substringAfterLast(".").lowercase()
+        if (extension != "txt" && extension != "csv") return 0f
+        
+        var confidence = 0f
+        
+        // Verificar se as linhas seguem o padrão dd/MM/yyyy;descrição;valor
+        val lines = contentPreview.lines().take(5)
+        val patternMatches = lines.count { line ->
+            line.contains(";") && BrazilianPatterns.DATE_BR.containsMatchIn(line)
+        }
+        confidence += (patternMatches.toFloat() / 5) * 0.5f
+        
+        // Keywords no nome do arquivo
+        val lowerName = fileName.lowercase()
+        if (lowerName.contains("itau")) confidence += 0.3f
+        if (lowerName.contains("extrato")) confidence += 0.2f
+        
+        return confidence.coerceIn(0f, 1f)
     }
 }

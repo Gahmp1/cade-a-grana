@@ -70,6 +70,10 @@ class FinanceViewModel(
             is FinanceEvent.LoadHistoricalData -> loadHistoricalData()
             is FinanceEvent.ClearReports -> clearReports()
             is FinanceEvent.ClearAllData -> clearAllData()
+            is FinanceEvent.ToggleHouseholdView -> toggleHouseholdView()
+            is FinanceEvent.SetTransactionOwner -> setTransactionOwner(event.transactionId, event.owner)
+            is FinanceEvent.ShowMonthDetail -> showMonthDetail(event.yearMonth)
+            is FinanceEvent.CloseMonthDetail -> closeMonthDetail()
         }
     }
     
@@ -204,13 +208,37 @@ class FinanceViewModel(
             
             println("⏳ Chamando PreviewTransactionsUseCase...")
             
+            // Criar um mapa de filePath -> owner para aplicação eficiente
+            val ownersByFile = fileMetadata.mapValues { it.value.owner }
+            println("   📋 Owners configurados: ${ownersByFile.filter { it.value != null }}")
+            
             previewTransactionsUseCase(filePaths, _state.value.ignorePatterns)
                 .onSuccess { transactions ->
                     println("✅ ViewModel: Preview concluído com ${transactions.size} transações")
+                    
+                    // Aplicar owner das FileMetadata às transações
+                    // Nota: As transações não têm referência direta ao arquivo de origem,
+                    // então aplicamos o owner do primeiro arquivo que tem owner configurado
+                    // Idealmente, PreviewTransactionsUseCase deveria retornar o filePath junto
+                    val defaultOwner = ownersByFile.values.firstOrNull { it != null }
+                    
+                    val transactionsWithOwner = transactions.map { transaction ->
+                        if (defaultOwner != null && transaction.owner == null) {
+                            transaction.copy(owner = defaultOwner)
+                        } else {
+                            transaction
+                        }
+                    }
+                    
+                    val ownerCount = transactionsWithOwner.count { it.owner != null }
+                    if (ownerCount > 0) {
+                        println("   📝 Aplicado owner '$defaultOwner' em $ownerCount transações")
+                    }
+                    
                     _state.value = _state.value.copy(
                         isLoading = false,
                         previewMode = true,
-                        pendingTransactions = transactions,
+                        pendingTransactions = transactionsWithOwner,
                         editedTransactions = emptyMap(),
                         changeLog = emptyList()
                     )
@@ -712,5 +740,60 @@ class FinanceViewModel(
                 savedMonths = emptyList()
             )
         }
+    }
+    
+    private fun toggleHouseholdView() {
+        _state.value = _state.value.copy(
+            showHouseholdView = !_state.value.showHouseholdView
+        )
+    }
+    
+    private fun setTransactionOwner(transactionId: String, owner: String?) {
+        coroutineScope.launch {
+            // Atualizar no preview (se estiver em modo preview)
+            if (_state.value.previewMode) {
+                val updatedPending = _state.value.pendingTransactions.map { transaction ->
+                    if (transaction.id == transactionId) {
+                        transaction.copy(owner = owner)
+                    } else {
+                        transaction
+                    }
+                }
+                _state.value = _state.value.copy(pendingTransactions = updatedPending)
+            }
+            
+            // Atualizar nas transações carregadas
+            val updatedTransactions = _state.value.transactions.map { transaction ->
+                if (transaction.id == transactionId) {
+                    transaction.copy(owner = owner)
+                } else {
+                    transaction
+                }
+            }
+            
+            _state.value = _state.value.copy(transactions = updatedTransactions)
+            
+            // Salvar alteração
+            val transaction = updatedTransactions.find { it.id == transactionId }
+            if (transaction != null) {
+                val yearMonth = "${transaction.date.year}-${transaction.date.monthNumber.toString().padStart(2, '0')}"
+                val monthTransactions = updatedTransactions.filter {
+                    "${it.date.year}-${it.date.monthNumber.toString().padStart(2, '0')}" == yearMonth
+                }
+                repository.saveTransactionsForMonth(yearMonth, monthTransactions)
+            }
+        }
+    }
+    
+    private fun showMonthDetail(yearMonth: String) {
+        _state.value = _state.value.copy(
+            selectedMonthDetail = yearMonth
+        )
+    }
+    
+    private fun closeMonthDetail() {
+        _state.value = _state.value.copy(
+            selectedMonthDetail = null
+        )
     }
 }

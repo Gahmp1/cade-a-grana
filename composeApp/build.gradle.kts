@@ -97,12 +97,56 @@ compose.desktop {
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.financehub"
+            packageName = "FinanceHub"
             packageVersion = "1.0.0"
+            description = "Personal Finance Management App"
+            vendor = "FinanceHub"
             
+            // Include all Java modules for full JDK support
+            includeAllModules = true
+            
+            // Include CLI JAR in the app bundle
+            appResourcesRootDir.set(project.layout.projectDirectory.dir("bundle-resources"))
+
             macOS {
                 iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
+                bundleID = "com.financehub"
+            }
+            
+            windows {
+                menuGroup = "FinanceHub"
+                upgradeUuid = "B9F8E2D4-3A1C-4F5E-8D7B-6C9A0E1F2D3B"
+            }
+            
+            linux {
+                packageName = "financehub"
+                debMaintainer = "financehub@example.com"
             }
         }
     }
+}
+
+// Task to copy CLI JAR to bundle resources
+val copyCliJarToBundle by tasks.registering(Copy::class) {
+    dependsOn(":cli:shadowJar")
+    from(project(":cli").layout.buildDirectory.file("libs/fhub-1.0.0.jar"))
+    into(layout.projectDirectory.dir("bundle-resources/macos"))
+    rename { "fhub-cli.jar" }
+}
+
+// Ensure CLI JAR is copied before packaging
+tasks.matching { 
+    it.name.contains("packageDmg") || 
+    it.name.contains("packageMsi") ||
+    it.name.contains("packageDeb") ||
+    it.name.contains("createDistributable") || 
+    it.name == "prepareAppResources" 
+}.configureEach {
+    dependsOn(copyCliJarToBundle)
+}
+
+// Ensure CLI JAR is built before running the app
+afterEvaluate {
+    tasks.findByName("run")?.dependsOn(":cli:shadowJar")
+    tasks.findByName("runDistributable")?.dependsOn(":cli:shadowJar")
 }

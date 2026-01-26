@@ -1,115 +1,107 @@
 package com.financehub
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.financehub.designsystem.components.*
+import com.financehub.designsystem.foundation.*
+import com.financehub.designsystem.tokens.*
 import com.financehub.domain.model.ConsolidatedReport
 import com.financehub.domain.model.MonthReport
 import kotlin.math.abs
 
 @Composable
 fun ConsolidatedSummaryCard(report: ConsolidatedReport) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    DSCard(
+        variant = CardVariant.DEFAULT,
+        elevation = DSElevation.md
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
         ) {
-            Text(
-                "Resumo Consolidado",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+            DSText(
+                text = "Resumo Consolidado",
+                variant = TextVariant.TITLE
             )
             
-            Divider()
+            HorizontalDivider(color = DSColors.Dark.borderSubtle)
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Período:", fontWeight = FontWeight.Medium)
-                Text("${report.startMonth} até ${report.endMonth}")
+                DSText(text = "Período:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSText(text = "${report.startMonth} até ${report.endMonth}", variant = TextVariant.BODY)
             }
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total de meses:", fontWeight = FontWeight.Medium)
-                Text("${report.monthCount}")
+                DSText(text = "Total de meses:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSText(text = "${report.monthCount}", variant = TextVariant.BODY)
             }
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Transações:", fontWeight = FontWeight.Medium)
-                Text("${report.totalTransactions}")
+                DSText(text = "Transações:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSText(text = "${report.totalTransactions}", variant = TextVariant.BODY)
             }
             
-            Divider()
+            HorizontalDivider(color = DSColors.Dark.borderSubtle)
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total Receitas:", fontWeight = FontWeight.Medium)
-                Text(
-                    "R$ ${String.format("%.2f", report.totalIncome)}",
-                    color = MaterialTheme.colorScheme.primary
+                DSText(text = "Total Receitas:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSMoneyText(amount = report.totalIncome, isIncome = true)
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                DSText(text = "Total Despesas:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSMoneyText(amount = report.totalExpense, isIncome = false)
+            }
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                DSText(text = "Saldo:", variant = TextVariant.BODY, fontWeight = FontWeight.Bold)
+                DSMoneyText(
+                    amount = report.balance,
+                    isIncome = report.balance >= 0,
+                    size = MoneyTextSize.MEDIUM
                 )
             }
             
+            HorizontalDivider(color = DSColors.Dark.borderSubtle)
+            
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Total Despesas:", fontWeight = FontWeight.Medium)
-                Text(
-                    "R$ ${String.format("%.2f", report.totalExpense)}",
-                    color = MaterialTheme.colorScheme.error
-                )
+                DSText(text = "Média Mensal Receitas:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSText(text = "R$ ${String.format("%.2f", report.averageMonthlyIncome)}", variant = TextVariant.BODY)
             }
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Saldo:", fontWeight = FontWeight.Bold)
-                Text(
-                    "R$ ${String.format("%.2f", report.balance)}",
-                    color = if (report.balance >= 0) 
-                        MaterialTheme.colorScheme.primary 
-                    else 
-                        MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            
-            Divider()
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Média Mensal Receitas:", fontWeight = FontWeight.Medium)
-                Text("R$ ${String.format("%.2f", report.averageMonthlyIncome)}")
-            }
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Média Mensal Despesas:", fontWeight = FontWeight.Medium)
-                Text("R$ ${String.format("%.2f", report.averageMonthlyExpense)}")
+                DSText(text = "Média Mensal Despesas:", variant = TextVariant.BODY, fontWeight = FontWeight.Medium)
+                DSText(text = "R$ ${String.format("%.2f", report.averageMonthlyExpense)}", variant = TextVariant.BODY)
             }
         }
     }
@@ -119,40 +111,30 @@ fun ConsolidatedSummaryCard(report: ConsolidatedReport) {
 fun MonthReportCard(
     monthReport: MonthReport,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onViewDetails: (() -> Unit)? = null
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
+    DSCard(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) 
-                MaterialTheme.colorScheme.primaryContainer 
-            else 
-                MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        variant = if (isSelected) CardVariant.SELECTED else CardVariant.DEFAULT,
+        elevation = DSElevation.sm
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(DSSpacing.sm)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    monthReport.yearMonth,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                DSText(
+                    text = monthReport.yearMonth,
+                    variant = TextVariant.TITLE
                 )
                 
-                Text(
-                    "${monthReport.sourceCount} fonte(s) - ${monthReport.transactionCount} transações",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                DSText(
+                    text = "${monthReport.sourceCount} fonte(s) - ${monthReport.transactionCount} transações",
+                    variant = TextVariant.CAPTION
                 )
             }
             
@@ -161,58 +143,45 @@ fun MonthReportCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(
-                        "Receitas",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "R$ ${String.format("%.2f", monthReport.totalIncome)}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Medium
-                    )
+                    DSText(text = "Receitas", variant = TextVariant.LABEL)
+                    DSMoneyText(amount = monthReport.totalIncome, isIncome = true)
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "Despesas",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "R$ ${String.format("%.2f", monthReport.totalExpense)}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Medium
-                    )
+                    DSText(text = "Despesas", variant = TextVariant.LABEL)
+                    DSMoneyText(amount = monthReport.totalExpense, isIncome = false)
                 }
                 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "Saldo",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "R$ ${String.format("%.2f", monthReport.balance)}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (monthReport.balance >= 0) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
-                            MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold
+                    DSText(text = "Saldo", variant = TextVariant.LABEL)
+                    DSMoneyText(
+                        amount = monthReport.balance,
+                        isIncome = monthReport.balance >= 0,
+                        size = MoneyTextSize.MEDIUM
                     )
                 }
             }
             
             if (isSelected) {
-                Divider()
+                HorizontalDivider(color = DSColors.Dark.borderSubtle)
                 
-                Text(
-                    "Categorias",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
+                // Botão Ver Detalhes
+                if (onViewDetails != null) {
+                    DSButton(
+                        onClick = onViewDetails,
+                        variant = ButtonVariant.SECONDARY,
+                        modifier = Modifier.fillMaxWidth(),
+                        leadingIcon = Icons.Default.Check
+                    ) {
+                        Text("Ver Detalhes do Mês")
+                    }
+                    
+                    HorizontalDivider(color = DSColors.Dark.borderSubtle)
+                }
+                
+                DSText(
+                    text = "Categorias",
+                    variant = TextVariant.TITLE
                 )
                 
                 monthReport.categorySummary.values.forEach { category ->
@@ -220,14 +189,14 @@ fun MonthReportCard(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            category.category.displayName,
-                            style = MaterialTheme.typography.bodySmall
+                        DSText(
+                            text = category.category.displayName,
+                            variant = TextVariant.CAPTION
                         )
-                        Text(
-                            "R$ ${String.format("%.2f", abs(category.expense))}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                        DSMoneyText(
+                            amount = abs(category.expense),
+                            isIncome = false,
+                            size = MoneyTextSize.SMALL
                         )
                     }
                 }
